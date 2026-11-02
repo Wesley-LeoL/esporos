@@ -5,10 +5,10 @@ Jogo de sobrevivência tático ciberpunk em pixel art 2D isométrico, feito em *
 ## Rodar
 Abra a pasta no Godot 4.7+ (versão padrão, não .NET) e aperte F5. O projeto já tem presets de exportação (Windows e Linux) em `export_presets.cfg`.
 
-**Controles:** `WASD` mover · `Espaço`/clique atacar · `E` interagir · `Tab` ou `I` menu · `X` demolir · `F5` salvar · `Esc` cancelar · `F1` ou `` ` `` console de testes.
+**Controles:** `WASD` mover · mouse mira · `Espaço`/clique atacar · `F` empurrar · `E` interagir · `Tab` ou `I` menu · `X` demolir · `F5` salvar · `Esc` cancelar · `F1` ou `` ` `` console de testes.
 
 ## Controles
-WASD move · Shift corre · C agacha · Espaço/clique ataca (armas de fogo miram no mouse) · R recarrega · E interage (caixas, NPCs, veículos; dentro do veículo, sai) · Tab abre o terminal (inventário, corpo, habilidades, implantes, mapa) · I inventário · M mapa · B modo construção · V status do veículo (dentro dele) · X demolição · 1 a 5 barra rápida · F5 salva · F1 console.
+WASD move · o personagem olha para o mouse · Shift corre · C agacha · Espaço/clique ataca na direção do mouse · F empurra · R recarrega · E interage (caixas, NPCs, veículos; dentro do veículo, sai) · Tab abre o terminal (inventário, corpo, habilidades, implantes, mapa) · I inventário · M mapa · B modo construção · V status do veículo (dentro dele) · X demolição · 1 a 5 barra rápida · F5 salva · F1 console.
 
 **Inventário em grade:** botão direito abre as opções do item; arrastar com o botão esquerdo reorganiza ou move entre bolsos, mochila, coldre e o recipiente aberto; dois cliques passam o item entre o recipiente e o inventário; "Organizar" ordena por tipo. Caixas, baús, sacos, cadáveres e porta-malas abrem a grade deles ao lado da sua.
 
@@ -29,6 +29,12 @@ Para testar o co-op numa máquina só: `godot --path . -- --autostart=host --nam
 - **Mar de Esporos**: concentração sobe perto da borda do mapa; na zona letal o filtro é destruído e hordas de elite surgem sem parar.
 - **Inventário por peso e volume**: bolsos, mochilas e coldre com capacidade em litros, sobrecarga que deixa lento, itens com durabilidade (armas e máscara), validade (perecíveis estragam) e carga (bateria, combustível, antisséptico, fita). Janela de saque com o recipiente e o inventário lado a lado; baú para guardar.
 - **Armas de fogo, som e furtividade**: pistola e espingarda com munição, mira no mouse e dispersão; passos, tiros e construções fazem barulho que os infectados investigam; [C] agacha. Ferramentas (martelo, chave de fenda, alicate, serra) e materiais (pregos, fios, sucata eletrônica) para construir.
+- **Combate com ritmo**: o infectado para, prepara o golpe (avermelha), bate e se recupera; apanhar faz cambalear; empurrão (F), golpe furtivo pelas costas, agarrado quando cercado. Tipos: corredor, brutamonte, bolha de esporos, rastejante e o raro chamador, que grita por ajuda quando quase morto.
+- **Janelas e barricadas**: quebre janelas (barulho), pregue barricadas em janelas, portas e vãos; infectados batem nelas e arrombam portas; prédio todo fechado vira o abrigo da equipe.
+- **Sono, frio e chuva**: durma numa cama; o frio da noite e da chuva esfria o corpo (roupa aquece, molhada aquece menos; abrigo e fogo ajudam).
+- **Saqueadores**: bandos armados em acampamentos e patrulhas, que também assaltam vilas prósperas.
+- **Prédios altos**: 2 e 3 andares iluminados nas cidades, com escadas, andares para saquear e janelas para pular.
+- **Sons**: 43 efeitos provisórios numa tabela central (`autoload/sfx_table.gd`, ver `docs/SONS.md`).
 - **Fechaduras e mira**: prédios e móveis trancados (ache a chave ou force com gazua); o personagem olha, bate e atira na direção do mouse.
 - **Móveis, estações e máquinas**: os itens das casas ficam em geladeiras, armários, pias e estantes; bancada, fogareiro, fornalha e mesa de reparos abrem a própria janela; purificador, selagem e torre só funcionam com insumo (filtro, munição) além de energia.
 - **Ferimentos e roupas**: nem todo golpe sangra, e uma ferida aberta só piora com novos cortes; roupas e armaduras (5 espaços) reduzem o dano e o sangramento, gastam com o uso e formam conjuntos com bônus (mecânico, médico, tático, anti-esporos).

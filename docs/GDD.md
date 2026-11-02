@@ -191,6 +191,56 @@ Antes de iniciarmos a lógica, preciso que você me oriente a:
 - **Rolagem das abas:** a posição da rolagem se mantém quando a tela se atualiza.
 - **Barra rápida no inventário:** com o menu aberto, a barra rápida sai da lateral e aparece no topo da aba Inventário, para arrastar itens para ela.
 
+### Combate e tipos de infectados (fase 15)
+
+- **Ritmo:** ao chegar no alvo, o infectado para, prepara o golpe (o corpo avermelha e aparece um aviso), bate e fica um instante se recuperando. Apanhar no corpo a corpo faz cambalear e perde o golpe preparado; tiro quase não faz cambalear (a espingarda um pouco). Assim dá para bater e se afastar.
+- **Empurrão (F):** afasta e derruba por ~1 s os infectados à frente, sem dano; gasta 8 de estamina.
+- **Golpe furtivo:** em infectado distraído, ou chegando agachado pelas costas, o golpe dá o triplo de dano e derruba.
+- **Agarrado:** cercado por 3 ou mais, ou pego por um brutamonte, o personagem fica bem lento por ~1 s.
+- **Tipos** (os perigosos aparecem mais perto da borda):
+
+| Tipo | Vida | Velocidade | Dano | Particularidade |
+|---|---|---|---|---|
+| Comum | 40 | normal | 9 | — |
+| Corredor | 26 | muito rápido | 7 | golpe rápido |
+| Brutamonte | 150 | lento | 21 | quase não cambaleia; derruba muro, barricada e porta 2,5x mais rápido; vem nas hordas |
+| Bolha de esporos | 34 | lento | 6 | ao morrer solta uma nuvem: sem máscara, +14 de carga patogênica; com máscara, gasta o filtro |
+| Rastejante | 30 | muito lento | 11 | difícil de ver; só ataca as pernas |
+| Chamador (raro) | 60 | normal | 8 | com menos de 30% de vida, se encolhe e grita: todo infectado a ~700 px vem atrás de quem o feriu, e mais 2 a 4 aparecem |
+
+### Janelas, barricadas e casa-abrigo (fase 16)
+
+- **Janela:** [E] quebra a janela inteira (barulho alto; de mão vazia, 45% de cortar o braço). Janela quebrada vira passagem.
+- **Barricada** (modo construção, aba Fundação; 2 madeiras, 4 pregos, martelo): vai numa janela (inteira ou quebrada), porta ou vão de qualquer prédio, do mapa ou seu. Tem 160 de vida e bloqueia a passagem. [E] tira (devolve 1 madeira).
+- **Infectados:** quem vê alguém dentro de um prédio vai até a abertura mais perto. Se estiver aberta, entra; se tiver barricada, bate nela; se for porta fechada, arromba (a porta cede depois de alguns golpes).
+- **Abrigo:** um prédio do mapa sem nenhuma abertura passável (janela quebrada, vão ou porta aberta sem barricada) e com ao menos uma barricada vira o abrigo da equipe: é onde os sobreviventes novos acordam.
+
+### Sono, frio e chuva (fase 17)
+
+- **Descanso:** cai de 100 a 0 em ~1,5 dia do jogo acordado (mais rápido lutando). Abaixo de 25, a estamina volta mais devagar; abaixo de 8, o personagem fica lento. [E] numa cama (das casas ou construída) dorme: recupera em ~4 min de jogo; jogando sozinho, o tempo passa 6x mais rápido. Mexer-se, levar dano ou um infectado/saqueador chegar perto acorda.
+- **Temperatura do ar:** ~22 °C à tarde e ~8 °C de madrugada; nublado -2, chuva -6, tempestade -9, névoa -3.
+- **Sensação:** ar + aquecimento da roupa x1,4 (cada peça tem "aquece"; molhada aquece até 60% menos) + 7 dentro de prédio + 14 perto de fogo (fogareiro ou fornalha acesos, tambor com fogo).
+- **Corpo:** abaixo de 16 °C de sensação, o corpo esfria; acima de 18, volta aos 37. Abaixo de 35,5 °C: frio (estamina mais lenta). Abaixo de 34: hipotermia (mais lento, perde vida); abaixo de 32, perde vida rápido.
+- **Chuva:** fora de prédio molha; seca no abrigo e bem rápido perto do fogo.
+- **HUD:** barras novas de descanso e temperatura do corpo; avisos de molhado, com frio, hipotermia, exausto e agarrado.
+
+### Saqueadores (fase 18)
+
+- **Quem são:** bandos com pistola, espingarda, faca ou taco. Com arma de fogo atiram de longe e mantêm distância; com arma branca chegam perto e preparam o golpe. Feridos, às vezes fogem. Ao morrer largam a arma, munição e algum saque.
+- **Onde:** acampamentos em prédios abandonados grandes, longe das vilas vivas (3 a 5 por acampamento; limpar todos conta no save), e patrulhas raras de 2 ou 3.
+- **Inimigos de todos:** atacam jogadores, moradores e infectados; infectados também os caçam; guardas e torres atiram neles.
+- **Assaltos:** uma vila com estoque alto pode ser assaltada no lugar de uma horda (30% das vezes). O bando abre caminho pela cerca, mata quem encontra e, se ficar 8 s no centro, rouba metade do estoque e a vila perde prosperidade. Longe dos jogadores, o assalto é simulado (guardas e cerca seguram parte) e pode custar moradores. Matar saqueadores perto de uma vila dá reputação.
+
+### Prédios de vários andares (fase 19)
+
+- **Prédios altos:** nas cidades, prédios de 2 ou 3 andares com comércio no térreo. Por fora, um bloco com janelas acesas coloridas, neon na quina, letreiro e laje com caixa d'água e antena; à noite, luzes iluminam a rua (mais fracas nos abandonados).
+- **Andares de cima:** salas de verdade (apartamentos com móveis e saque), guardadas numa faixa reservada fora do mapa. A escada ([E]) liga um andar ao outro. Na primeira visita a um andar de prédio abandonado aparecem de 1 a 3 infectados. Esporos, clima e borda nos andares contam como no prédio lá embaixo.
+- **Janela alta:** quebre e [E] para pular. O personagem cai do lado de fora do prédio, com o dano de queda de 3,5 m por andar.
+
+### Sons (fase 20)
+
+43 efeitos provisórios (gerados por `tools/gen_sfx.py`) tocados nos eventos do jogo. Para trocar qualquer um, use a tabela `autoload/sfx_table.gd`; a lista explicada está em `docs/SONS.md`.
+
 ### Mundo em chunks e vilas vivas (fase 7)
 
 - **Mapa: cidades pequenas e aldeias (29/10):**
@@ -258,4 +308,10 @@ Antes de iniciarmos a lógica, preciso que você me oriente a:
 | 12 | Ferimentos com chance de sangrar (uma ferida por vez), torções e fraturas com tala, quedas, roupas e armaduras com conjuntos, barra rápida de escolher e clicar | **feito** |
 | 13 | Móveis com itens (geladeira, armário, pia...), estações com janela de fabricação (bancada, fogareiro, fornalha, mesa de reparos) e máquinas que gastam insumo (filtro, munição, lenha) | **feito** |
 | 14 | Fechaduras (chave escondida, gazua ou forçar), personagem mirando no mouse, vestir e construir imediatos, ação com tempo fecha o menu, barra rápida no inventário | **feito** |
+| 15 | Combate com preparo do golpe, cambalear, empurrão, golpe furtivo, agarrado; seis tipos de infectado (com o raro chamador) | **feito** |
+| 16 | Quebrar janela, barricadas em janelas/portas/vãos, infectados arrombando, prédio fechado vira abrigo | **feito** |
+| 17 | Sono e cama, temperatura do corpo, roupa que aquece, chuva que molha | **feito** |
+| 18 | Saqueadores: acampamentos, patrulhas, assaltos a vilas (reais e simulados) | **feito** |
+| 19 | Prédios de 2 e 3 andares iluminados, escadas, andares de cima, pulo da janela | **feito** |
+| 20 | Sons provisórios com tabela central | **feito** |
 | 9 | Construção em bordas (estilo The Sims) com 3 abas, utilidades e decoração, rede de energia (eólico, combustão, baterias), mesa de reparos, dia/noite, clima e iluminação | **feito** |
