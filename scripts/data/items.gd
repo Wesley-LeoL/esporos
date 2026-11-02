@@ -309,8 +309,8 @@ static func compact(list: Array) -> void:
 ## Resumo de uma peça de roupa: espaço, defesa, proteção contra sangramento, conjunto e bônus.
 static func cloth_text(id: String) -> String:
 	var d := def(id)
-	var t := "%s · defesa %d%% · anti-corte %d%%" % [DB.ROUPA_SLOT_NAMES.get(String(d.get("slot", "")), "?"),
-		int(float(d.get("def", 0.0)) * 100.0), int(float(d.get("corte", 0.0)) * 100.0)]
+	var t := "%s · defesa %d%% · anti-corte %d%% · aquece %s" % [DB.ROUPA_SLOT_NAMES.get(String(d.get("slot", "")), "?"),
+		int(float(d.get("def", 0.0)) * 100.0), int(float(d.get("corte", 0.0)) * 100.0), str(d.get("calor", 0))]
 	var b: Dictionary = d.get("bonus", {})
 	for k in b:
 		t += " · %s +%d%%" % [DB.BONUS_NAMES.get(k, k), int(float(b[k]) * 100.0)]

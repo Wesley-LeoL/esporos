@@ -21,6 +21,11 @@ func _ready() -> void:
 		return
 	var meta: Dictionary = CityCatalog.PROPS.get(art, {})
 	_add_collision(int(meta.get("raio", 0)))
+	if art == "cama":
+		add_to_group("interactable")
+		add_to_group("beds")
+	elif art == "tambor_fogo":
+		add_to_group("heat")
 	if LAMPS.has(art) and variant == 0:
 		var l: Array = LAMPS[art]
 		_light = PointLight2D.new()
@@ -33,6 +38,15 @@ func _ready() -> void:
 		set_process(true)
 	else:
 		set_process(false)
+
+
+func prompt() -> String:
+	return "[E] Dormir" if art == "cama" else ""
+
+
+## Dormir é pedido pelo jogador (Player); aqui não há o que fazer.
+func interact(_p: Player) -> void:
+	pass
 
 
 func _process(delta: float) -> void:

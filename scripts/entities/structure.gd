@@ -83,6 +83,10 @@ func _ready() -> void:
 		add_to_group("interactable")
 	if kind in STATIONS:
 		add_to_group("stations")
+	if kind in ["fogareiro", "fornalha"]:
+		add_to_group("heat")
+	if kind == "cama":
+		add_to_group("beds")
 	if kind != "edificio":
 		add_to_group("station_" + kind)
 	var def: Dictionary = DB.BUILDS.get(kind, {})
@@ -293,7 +297,7 @@ func prompt() -> String:
 		"coletor":
 			return "[E] Recolher água da chuva (%d)" % water if water > 0 else "Coletor de chuva: vazio"
 		"cama":
-			return "[E] Descansar"
+			return "[E] Dormir"
 		"canteiro":
 			if dead:
 				return "[E] Limpar canteiro (a plantação morreu)"

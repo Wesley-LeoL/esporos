@@ -546,6 +546,13 @@ func debug_command(cmd: String) -> void:
 				else:
 					p.act("build", ["barricada", bkw.x, bkw.y, bkw.z])
 				print("[win] %s %s" % [bkw, world.map_walls[bkw]])
+		"body":
+			print("[body] ar=%.1f sente=%.1f corpo=%.2f molhado=%.0f sono=%.1f dormindo=%s env=%s" % [world.air_temp(), p.data.felt_temp(p._body_env),
+				p.data.temp_corpo, p.data.molhado, p.data.sono, p.data.sleeping, p._body_env])
+		"sono":
+			p.data.sono = float(arg)
+		"sleep":
+			p.act("sleep")
 		"interact_near":
 			p._update_nearby()
 			if p.nearby != null:

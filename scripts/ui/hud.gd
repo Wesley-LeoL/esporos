@@ -13,6 +13,8 @@ const VITALS := [
 	["hunger", "fome", "FOME", UITheme.HUNGER, true],
 	["thirst", "sede", "SEDE", UITheme.THIRST, false],
 	["stamina", "estamina", "ESTAMINA", Color("#e6d26a"), false],
+	["sono", "relogio", "DESCANSO", Color("#9b8cff"), false],
+	["temp", "calor", "TEMPERATURA DO CORPO", Color("#ff9a5a"), false],
 ]
 const TAB_DEFS := [["inv", "Inventário", "mochila"], ["corpo", "Corpo", "corpo"], ["skills", "Habilidades", "chip"],
 	["impl", "Implantes", "bateria"], ["mapa", "Mapa", "mundo"]]
@@ -894,6 +896,9 @@ func _process(delta: float) -> void:
 	_set_bar("hunger", 100.0 - d.calories / SurvivorData.MAX_CAL * 100.0)
 	_set_bar("thirst", d.water)
 	_set_bar("stamina", d.stamina / d.max_stamina() * 100.0)
+	_set_bar("sono", d.sono)
+	_set_bar("temp", (d.temp_corpo - 32.0) / 5.0 * 100.0)
+	_update_sleep_overlay(d)
 
 	# ar e filtro
 	var spore := Game.world.spore_at(p.position)
@@ -1380,6 +1385,29 @@ func _neural_glitch(d: SurvivorData) -> void:
 	hurt.color = Color(0.7, 0.1, 0.9, 0.12 + 0.08 * sin(_t * 23.0))
 
 
+var _sleep_cover: ColorRect
+var _sleep_label: Label
+
+
+## Tela escurecida enquanto o personagem dorme.
+func _update_sleep_overlay(d: SurvivorData) -> void:
+	if _sleep_cover == null:
+		_sleep_cover = ColorRect.new()
+		_sleep_cover.color = Color(0.01, 0.01, 0.03, 0.7)
+		_sleep_cover.set_anchors_preset(Control.PRESET_FULL_RECT)
+		_sleep_cover.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		ui.add_child(_sleep_cover)
+		ui.move_child(_sleep_cover, 0)
+		_sleep_label = _label("", L, UITheme.TEXT)
+		_sleep_label.set_anchors_preset(Control.PRESET_CENTER)
+		_sleep_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_sleep_cover.add_child(_sleep_label)
+	_sleep_cover.visible = d.sleeping
+	if d.sleeping:
+		_sleep_label.text = "DORMINDO · descanso %d%% · %s\nmexa-se para acordar" % [int(d.sono), Game.world.clock_text() if Game.world != null else ""]
+		_sleep_label.position = (ui.size - _sleep_label.size) / 2.0
+
+
 func _set_bar(key: String, value: float) -> void:
 	var pair: Array = bars[key]
 	var bar: PixelBar = pair[0]
@@ -1482,6 +1510,16 @@ func _update_effects(d: SurvivorData, spore: float) -> void:
 		list.append(["alerta", "INFECÇÃO EM FERIDA", UITheme.WARN])
 	if d.heat > 70.0:
 		list.append(["calor", "SUPERAQUECIMENTO", UITheme.WARN])
+	if d.molhado > 30.0:
+		list.append(["sede", "MOLHADO %d%%" % int(d.molhado), UITheme.THIRST])
+	if d.temp_corpo < 34.0:
+		list.append(["calor", "HIPOTERMIA", UITheme.DANGER])
+	elif d.temp_corpo < 35.5:
+		list.append(["calor", "COM FRIO", UITheme.WARN])
+	if d.sono < 25.0 and not d.sleeping:
+		list.append(["relogio", "EXAUSTO", UITheme.WARN])
+	if d.grab_t > 0.0:
+		list.append(["alerta", "AGARRADO", UITheme.DANGER])
 	if d.suppress_t > 0.0:
 		list.append(["supressor", "SUPRESSOR %ds" % int(d.suppress_t), UITheme.CONTAMINATION])
 	if d.antibiotic_t > 0.0:

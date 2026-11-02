@@ -55,6 +55,13 @@ var synaptic: float = 0.0
 var pain_t: float = 0.0
 ## Agarrado pelos infectados (segundos): anda bem devagar.
 var grab_t: float = 0.0
+## Descanso (100 = descansado; cai em ~1,5 dia do jogo), dormindo, temperatura do corpo (°C)
+## e quanto está molhado (0-100).
+var sono: float = 100.0
+var sleeping := false
+var sleep_bed := 1.0
+var temp_corpo: float = 37.0
+var molhado: float = 0.0
 var light_u: int = 0
 ## Comida quente (segundos restantes): a estamina recupera mais rápido.
 var well_fed_t: float = 0.0
@@ -627,7 +634,60 @@ func tick(delta: float, env: Dictionary) -> void:
 	_tick_neural(delta)
 	_tick_pathogen(delta, spore, env.get("purifier", false))
 	_tick_wounds(delta, spore)
+	_tick_body(delta, env)
 	_check_death()
+
+
+## Aquecimento da roupa vestida (molhada esquenta bem menos).
+func clothing_warmth() -> float:
+	var w := 0.0
+	for slot: String in DB.ROUPA_SLOTS:
+		if not equip[slot].is_empty():
+			w += float(Items.def(equip[slot]["id"]).get("calor", 0.0))
+	return w * (1.0 - 0.6 * molhado / 100.0)
+
+
+## Sensação térmica (°C) com o ambiente que o mundo informa: temperatura do ar, abrigo
+## (dentro de um prédio), fogo por perto e roupa.
+func felt_temp(env: Dictionary) -> float:
+	return float(env.get("temp", 20.0)) + clothing_warmth() * 1.4 + (7.0 if env.get("abrigo", false) else 0.0) \
+		+ (14.0 if env.get("fogo", false) else 0.0)
+
+
+## Sono, frio e chuva.
+func _tick_body(delta: float, env: Dictionary) -> void:
+	# sono: cai acordado (mais rápido correndo e lutando); dormindo, recupera (cama é melhor)
+	if sleeping:
+		sono = minf(100.0, sono + 100.0 / 240.0 * sleep_bed * delta)
+		stamina = minf(max_stamina(), stamina + 6.0 * delta)
+		if sono >= 99.9:
+			sleeping = false
+			message.emit("Você acordou descansado.")
+	else:
+		sono = maxf(0.0, sono - 100.0 / 2160.0 * delta * (1.4 if env.get("combat", false) else 1.0))
+		if sono < 25.0:
+			_warn("sono", "Você está exausto: durma numa cama ([E]).", 60.0)
+	# chuva molha quem está fora de prédio; seca no abrigo e perto do fogo
+	var under := bool(env.get("abrigo", false))
+	if env.get("chuva", false) and not under:
+		molhado = minf(100.0, molhado + 1.6 * delta)
+	elif env.get("fogo", false):
+		molhado = maxf(0.0, molhado - 1.6 * delta)
+	elif under:
+		molhado = maxf(0.0, molhado - 0.5 * delta)
+	else:
+		molhado = maxf(0.0, molhado - 0.15 * delta)
+	# temperatura do corpo
+	var feel := felt_temp(env)
+	if feel < 16.0:
+		temp_corpo = maxf(28.0, temp_corpo - (16.0 - feel) * 0.0035 * delta)
+	elif temp_corpo < 37.0:
+		temp_corpo = minf(37.0, temp_corpo + (0.02 + maxf(0.0, feel - 18.0) * 0.004) * delta)
+	if temp_corpo < 34.0:
+		_hurt_internal("torso", (0.05 if temp_corpo >= 32.0 else 0.25) * delta, "Hipotermia")
+		_warn("hipotermia", "HIPOTERMIA! Procure abrigo, fogo e roupa seca.", 25.0)
+	elif temp_corpo < 35.5:
+		_warn("frio", "Você está com frio.", 60.0)
 
 
 func _warn(key: String, text: String, cooldown: float = 40.0) -> void:
@@ -742,6 +802,10 @@ func _tick_stamina(delta: float, sprinting: bool) -> void:
 	var regen := 9.0 + 0.8 * float(resist - 5)
 	if calories < 400.0 or water < 15.0:
 		regen *= 0.4
+	if sono < 25.0:
+		regen *= 0.6
+	if temp_corpo < 35.5:
+		regen *= 0.7
 	if load_ratio() > 1.0:
 		regen *= 0.5
 	if pathogen > 60.0:
@@ -1155,6 +1219,10 @@ func speed_mult() -> float:
 	var r := load_ratio()
 	if r > 1.0:
 		m -= minf(0.45, (r - 1.0) * 0.6)
+	if temp_corpo < 34.0:
+		m -= 0.15
+	if sono < 8.0:
+		m -= 0.1
 	if grab_t > 0.0:
 		return maxf(0.2, m * 0.4)
 	return maxf(0.3, m)
@@ -1581,7 +1649,7 @@ func to_dict() -> Dictionary:
 		"implants": implants.duplicate(true), "suppress_t": suppress_t, "tainted_t": tainted_t,
 		"antibiotic_t": antibiotic_t, "battery": battery, "heat": heat, "time_alive": time_alive,
 		"forca": forca, "resist": resist, "traits": traits.duplicate(), "stamina": stamina, "synaptic": synaptic,
-		"pain_t": pain_t, "grab_t": grab_t, "light_u": light_u, "well_fed_t": well_fed_t, "hotbar": hotbar.duplicate()}
+		"pain_t": pain_t, "grab_t": grab_t, "sono": sono, "sleeping": sleeping, "temp_corpo": temp_corpo, "molhado": molhado, "light_u": light_u, "well_fed_t": well_fed_t, "hotbar": hotbar.duplicate()}
 
 
 static func from_dict(src: Dictionary) -> SurvivorData:
@@ -1623,6 +1691,10 @@ static func from_dict(src: Dictionary) -> SurvivorData:
 	d.synaptic = float(src.get("synaptic", 0.0))
 	d.pain_t = float(src.get("pain_t", 0.0))
 	d.grab_t = float(src.get("grab_t", 0.0))
+	d.sono = float(src.get("sono", 100.0))
+	d.sleeping = bool(src.get("sleeping", false))
+	d.temp_corpo = float(src.get("temp_corpo", 37.0))
+	d.molhado = float(src.get("molhado", 0.0))
 	d.light_u = int(src.get("light_u", 0))
 	d.well_fed_t = float(src.get("well_fed_t", 0.0))
 	var hb: Array = src.get("hotbar", [])

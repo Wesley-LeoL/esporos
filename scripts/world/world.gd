@@ -2412,6 +2412,39 @@ func darkness() -> float:
 	return 1.0
 
 
+## Temperatura do ar (°C): ~22 à tarde, ~8 de madrugada; chuva, tempestade e névoa esfriam.
+func air_temp() -> float:
+	var t := 15.0 + 7.0 * sin((hour() - 9.0) / 24.0 * TAU)
+	t += {"nublado": -2.0, "chuva": -6.0, "tempestade": -9.0, "neblina": -3.0}.get(str(weather.get("tipo", "")), 0.0)
+	return t
+
+
+## Ambiente do corpo num ponto: ar, abrigo (dentro de prédio ou em piso construído), chuva e
+## fogo por perto (fogareiro ou fornalha acesos, tambor com fogo).
+func body_env(pos: Vector2) -> Dictionary:
+	var t := tile_pos(pos)
+	var c := Vector2i(floori(t.x), floori(t.y))
+	var fire := false
+	for n in get_tree().get_nodes_in_group("heat"):
+		var nd := n as Node2D
+		if nd is Structure and (nd as Structure).fuel <= 0.0:
+			continue
+		var off := nd.position - pos
+		if Vector2(off.x, off.y * 2.0).length() < 130.0:
+			fire = true
+			break
+	return {"temp": air_temp(), "abrigo": house_cells.has(c) or terrain_deltas.has(c), "chuva": is_raining(), "fogo": fire}
+
+
+## Servidor: perto de uma cama (prédio do mapa ou construída)?
+func bed_near(pos: Vector2) -> bool:
+	for n in get_tree().get_nodes_in_group("beds"):
+		var off := (n as Node2D).position - pos
+		if Vector2(off.x, off.y * 2.0).length() < 70.0:
+			return true
+	return false
+
+
 func is_raining() -> bool:
 	return str(weather.get("tipo", "")) in ["chuva", "tempestade"]
 

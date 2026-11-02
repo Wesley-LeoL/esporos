@@ -14,7 +14,7 @@ const FACING_NAMES := ["L", "SE", "S", "SO", "O", "NO", "N", "NE"]
 const SPEED := 100.0
 const ISO_Y_SCALE := 0.5
 const ACTIONS := ["hotbar", "use_item", "treat", "craft", "install", "maintain", "interact", "build", "demolish",
-	"attack", "save", "move", "drop", "repair", "refuel_station", "unlock", "shove", "unwear", "take", "take_all", "store", "remove_implant", "reload", "cancel", "examine", "deliver", "donate", "buy", "vehicle", "reorder", "sort_inv",
+	"attack", "save", "move", "drop", "repair", "refuel_station", "unlock", "shove", "sleep", "wake", "unwear", "take", "take_all", "store", "remove_implant", "reload", "cancel", "examine", "deliver", "donate", "buy", "vehicle", "reorder", "sort_inv",
 	"loot_order", "sort_loot"]
 ## Ações que levam tempo (barra de progresso; mover-se ou levar dano interrompe).
 const TIMED := ["treat", "install", "remove_implant", "maintain", "craft", "reload", "repair", "use_item", "vehicle", "unlock"]
@@ -36,6 +36,9 @@ var world: World
 # ---- replicado pelo dono
 var net_pos := Vector2.ZERO
 var shove_cd := 0.0
+var _env_t := 0.0
+var _wake_cd := 0.0
+var _body_env := {}
 var facing: int = Facing.S
 var moving := false
 var sprinting := false
@@ -199,6 +202,19 @@ func _local_control(delta: float) -> void:
 	var menu_open := Game.hud != null and Game.hud.blocks_input()
 	if console_open or menu_open:
 		input = Vector2.ZERO
+	if data != null and data.sleeping:
+		# dormindo: qualquer movimento acorda
+		if input != Vector2.ZERO and _wake_cd <= 0.0:
+			_wake_cd = 0.5
+			act("wake")
+		_wake_cd = maxf(0.0, _wake_cd - delta)
+		input = Vector2.ZERO
+		# sozinho, a noite passa mais rápido dormindo
+		var ts := 6.0 if Net.is_solo() else 1.0
+		if not is_equal_approx(Engine.time_scale, ts):
+			Engine.time_scale = ts
+	elif not is_equal_approx(Engine.time_scale, 1.0):
+		Engine.time_scale = 1.0
 	if data != null and data.overloaded():
 		input = _overload_input(input, delta)
 	else:
@@ -239,7 +255,7 @@ func _local_control(delta: float) -> void:
 	attack_cd = maxf(0.0, attack_cd - delta)
 	_update_nearby()
 	var building_mode := Game.hud != null and Game.hud.build_mode
-	var hot_click := Game.hud != null and Game.hud.hot_consumes_click()
+	var hot_click := (Game.hud != null and Game.hud.hot_consumes_click()) or (data != null and data.sleeping)
 	if build_kind == "" and not demolish and not building_mode and attack_cd <= 0.0 and Input.is_action_pressed("attack") \
 			and not console_open and not menu_open and veh == null and not hot_click:
 		attack_cd = 0.55
@@ -296,8 +312,18 @@ func _server_tick(delta: float) -> void:
 	attack_flash = maxf(0.0, attack_flash - delta)
 	if alive:
 		var pos := position if is_local() else net_pos
-		data.tick(delta, {"spore": world.spore_at(pos), "moving": moving, "sprinting": sprinting, "combat": attack_flash > 0.0,
-			"purifier": world.purifier_near(pos)})
+		var env := {"spore": world.spore_at(pos), "moving": moving, "sprinting": sprinting, "combat": attack_flash > 0.0,
+			"purifier": world.purifier_near(pos)}
+		_env_t -= delta
+		if _env_t <= 0.0:
+			_env_t = 1.0
+			_body_env = world.body_env(pos)
+			if data.sleeping and _danger_near(pos):
+				data.sleeping = false
+				Game.tell(peer, "Você acordou assustado: tem infectado por perto!")
+				_sync_t = 0.0
+		env.merge(_body_env)
+		data.tick(delta, env)
 		look = int(data.has_mask()) | (2 if data.implant_active("braco_d") else 0) | (4 if data.implant_active("olho") else 0) \
 			| (8 if data.lantern_on() else 0)
 		_fire_cd = maxf(0.0, _fire_cd - delta)
@@ -520,6 +546,22 @@ func _run_act(action: String, args: Array) -> void:
 			world.try_demolish(Vector2i(int(args[0]), int(args[1])), self, int(args[2]) if args.size() > 2 else -1)
 		"shove":
 			_server_shove(float(args[0]))
+		"sleep":
+			var ppos := position if is_local() else net_pos
+			if not world.bed_near(ppos):
+				Game.tell(peer, "Precisa de uma cama por perto.")
+			elif _danger_near(ppos):
+				Game.tell(peer, "Não dá para dormir com infectados por perto.")
+			elif data.sono > 90.0:
+				Game.tell(peer, "Você não está com sono.")
+			else:
+				data.sleeping = true
+				data.sleep_bed = 1.0
+				Game.tell(peer, "Você deitou para dormir. Mexa-se para acordar.")
+		"wake":
+			if data.sleeping:
+				data.sleeping = false
+				Game.tell(peer, "Você acordou.")
 		"attack":
 			_server_attack(int(args[0]), float(args[1]) if args.size() > 1 else float(int(args[0])) * PI / 4.0)
 		"reload":
@@ -785,6 +827,16 @@ func _server_attack(_dir_index: int, aim_angle: float) -> void:
 		world.make_noise(pos, 150.0)
 
 
+## Infectado ou saqueador perto demais para dormir em paz.
+func _danger_near(pos: Vector2) -> bool:
+	for g in ["infected", "raiders"]:
+		for n in get_tree().get_nodes_in_group(g):
+			var off := (n as Node2D).position - pos
+			if Vector2(off.x, off.y * 2.0).length() < 230.0:
+				return true
+	return false
+
+
 ## Servidor: empurrão (afasta e derruba os infectados à frente, sem dano). Gasta estamina.
 func _server_shove(aim_angle: float) -> void:
 	if data.stamina < 6.0:
@@ -900,6 +952,7 @@ func _creation_refused() -> void:
 func server_hurt(limb: String, amount: float, pathogen_gain: float) -> void:
 	if data == null or not alive or data.god:
 		return
+	data.sleeping = false
 	data.damage_limb(limb, amount)
 	data.pathogen = minf(100.0, data.pathogen + pathogen_gain)
 	hurt_seq += 1
@@ -954,7 +1007,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("interact") and in_veh != null:
 		act("vehicle", [world.key_of(in_veh), "exit"])
 	elif event.is_action_pressed("interact") and nearby != null and is_instance_valid(nearby):
-		if world.is_locked(nearby):
+		if nearby.is_in_group("beds"):
+			act("sleep")
+		elif world.is_locked(nearby):
 			act("unlock", [world.key_of(nearby)])
 		elif nearby is Vehicle and Game.hud != null:
 			Game.hud.open_vehicle(nearby)
