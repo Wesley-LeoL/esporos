@@ -53,7 +53,7 @@ var implants := {}
 var synaptic: float = 0.0
 ## Analgésico (segundos restantes) e lanterna acesa (id único da lanterna, 0 = apagada).
 var pain_t: float = 0.0
-## Agarrado pelos infectados (segundos): anda bem devagar.
+## Agarrado por um infectado comum (segundos): não sai do lugar até soltar ou empurrar.
 var grab_t: float = 0.0
 ## Descanso (100 = descansado; cai em ~1,5 dia do jogo), dormindo, temperatura do corpo (°C)
 ## e quanto está molhado (0-100).
@@ -1224,7 +1224,7 @@ func speed_mult() -> float:
 	if sono < 8.0:
 		m -= 0.1
 	if grab_t > 0.0:
-		return maxf(0.2, m * 0.4)
+		return 0.0  # agarrado: não sai do lugar
 	return maxf(0.3, m)
 
 

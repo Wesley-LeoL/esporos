@@ -44,6 +44,10 @@ func prompt() -> String:
 	return "[E] Dormir" if art == "cama" else ""
 
 
+func options(_p: Player) -> Array:
+	return [{"id": "dormir", "txt": "Dormir", "ok": true}] if art == "cama" else []
+
+
 ## Dormir é pedido pelo jogador (Player); aqui não há o que fazer.
 func interact(_p: Player) -> void:
 	pass

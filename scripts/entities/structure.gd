@@ -409,6 +409,50 @@ func _interact_planter(player: Player) -> void:
 	queue_redraw()
 
 
+## Opções do [E] (menu pequeno perto do personagem). Cada uma: {id, txt, ok}.
+func options(p: Player) -> Array:
+	var d := p.data
+	match kind:
+		"gerador":
+			if eternal:
+				return []
+			return [{"id": "abastecer", "txt": "Abastecer (combustível %d%%)" % int(fuel), "ok": d.count("combustivel") > 0 and fuel < 99.5}]
+		"eolico":
+			var out: Array = []
+			if mods < MAX_MODS:
+				out.append({"id": "mastro", "txt": "Subir o mastro (%d/%d · 2 metais, 2 sucatas)" % [mods, MAX_MODS], "ok": true})
+			return out
+		"purificador", "vedacao", "torre":
+			if not needs_supply():
+				return []
+			var sup := supply_of(kind)
+			var have := 0
+			for it: String in sup["itens"]:
+				have += d.count(it)
+			return [{"id": "insumo", "txt": "%s · %s" % ["Municiar" if kind == "torre" else "Pôr filtro", supply_text()], "ok": have > 0 and fuel < 99.5}]
+		"coletor":
+			return [{"id": "agua", "txt": "Recolher água (%d)" % water, "ok": water > 0}]
+		"canteiro":
+			return [{"id": "canteiro", "txt": prompt().trim_prefix("[E] "), "ok": true}]
+		"cama":
+			return [{"id": "dormir", "txt": "Dormir", "ok": true}]
+		"fogareiro", "fornalha", "bancada", "mesa_reparo":
+			var o2: Array = [{"id": "ui:estacao", "txt": "Usar " + String(DB.BUILDS[kind]["nome"]).to_lower(), "ok": true}]
+			if not supply_of(kind).is_empty():
+				o2.append({"id": "lenha", "txt": "Pôr lenha (%d%%)" % int(fuel), "ok": d.count("madeira") > 0 and fuel < 99.5})
+			return o2
+	return []
+
+
+## Servidor: executa a opção escolhida.
+func do_option(p: Player, id: String) -> void:
+	match id:
+		"abastecer", "mastro", "agua", "canteiro":
+			interact(p)
+		"insumo", "lenha":
+			refill(p)
+
+
 ## Servidor: interação de um jogador; o novo estado vai para todos os peers.
 func interact(player: Player) -> void:
 	match kind:

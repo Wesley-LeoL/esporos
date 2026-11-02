@@ -196,12 +196,12 @@ Antes de iniciarmos a lógica, preciso que você me oriente a:
 - **Ritmo:** ao chegar no alvo, o infectado para, prepara o golpe (o corpo avermelha e aparece um aviso), bate e fica um instante se recuperando. Apanhar no corpo a corpo faz cambalear e perde o golpe preparado; tiro quase não faz cambalear (a espingarda um pouco). Assim dá para bater e se afastar.
 - **Empurrão (F):** afasta e derruba por ~1 s os infectados à frente, sem dano; gasta 8 de estamina.
 - **Golpe furtivo:** em infectado distraído, ou chegando agachado pelas costas, o golpe dá o triplo de dano e derruba.
-- **Agarrado:** cercado por 3 ou mais, ou pego por um brutamonte, o personagem fica bem lento por ~1 s.
-- **Tipos** (os perigosos aparecem mais perto da borda):
+- **Agarrado (revisado em 02/11):** só o infectado comum agarra. Cada golpe dele que acerta tem 35% de chance de prender o personagem por ~2 s, sem sair do lugar. O empurrão (F) solta na hora, e cada golpe que você acerta reduz o tempo preso. Segurando, ele morde de novo mais rápido.
+- **Tipos:** o comum é a grande maioria (cerca de 80%); os outros são raros, e os perigosos aparecem mais perto da borda.
 
 | Tipo | Vida | Velocidade | Dano | Particularidade |
 |---|---|---|---|---|
-| Comum | 40 | normal | 9 | — |
+| Comum (a grande maioria) | 40 | lento | 8 | o golpe pode agarrar |
 | Corredor | 26 | muito rápido | 7 | golpe rápido |
 | Brutamonte | 150 | lento | 21 | quase não cambaleia; derruba muro, barricada e porta 2,5x mais rápido; vem nas hordas |
 | Bolha de esporos | 34 | lento | 6 | ao morrer solta uma nuvem: sem máscara, +14 de carga patogênica; com máscara, gasta o filtro |
@@ -211,9 +211,34 @@ Antes de iniciarmos a lógica, preciso que você me oriente a:
 ### Janelas, barricadas e casa-abrigo (fase 16)
 
 - **Janela:** [E] quebra a janela inteira (barulho alto; de mão vazia, 45% de cortar o braço). Janela quebrada vira passagem.
-- **Barricada** (modo construção, aba Fundação; 2 madeiras, 4 pregos, martelo): vai numa janela (inteira ou quebrada), porta ou vão de qualquer prédio, do mapa ou seu. Tem 160 de vida e bloqueia a passagem. [E] tira (devolve 1 madeira).
+- **Barricada** ([E] na janela, porta ou vão e "Barricar"; 2 madeiras, 4 pregos, martelo; 4 s): vai numa janela (inteira ou quebrada), porta ou vão de qualquer prédio, do mapa ou seu. Tem 160 de vida e bloqueia a passagem. [E] tira (devolve 1 madeira).
 - **Infectados:** quem vê alguém dentro de um prédio vai até a abertura mais perto. Se estiver aberta, entra; se tiver barricada, bate nela; se for porta fechada, arromba (a porta cede depois de alguns golpes).
 - **Abrigo:** um prédio do mapa sem nenhuma abertura passável (janela quebrada, vão ou porta aberta sem barricada) e com ao menos uma barricada vira o abrigo da equipe: é onde os sobreviventes novos acordam.
+
+### Interação pelo [E] e tempo das ações (fase 21)
+
+- **Menu do [E]:** apertar [E] num objeto do mundo abre um painel pequeno ao lado do personagem com as opções dele (opções impossíveis aparecem apagadas). Escolha com o mouse, com o número (1-9) ou com [E] de novo (a primeira possível); Esc fecha, e andar para longe também. Com uma opção só, o [E] já faz direto.
+  - *Veículo:* dirigir, entrar como passageiro, ligação direta, abastecer, consertar, porta-malas, painel.
+  - *Janela:* quebrar, barricar (inteira ou quebrada); andar alto: pular. *Porta:* abrir/fechar, usar a chave ou forçar, barricar. *Barricada:* tirar. *Muro da vila:* consertar.
+  - *Eólico:* subir o mastro (2 metais, 2 sucatas). *Gerador:* abastecer. *Purificador, selagem, torre:* pôr filtro ou municiar. *Coletor:* recolher água. *Canteiro:* plantar, regar, colher. *Fogareiro e fornalha:* usar (janela de receitas) ou pôr lenha. *Cama:* dormir. *Escada:* subir/descer. *Móvel, caixa, corpo:* abrir.
+  - As janelas grandes continuam só para fabricar (estações), conversar com a vila e o painel do veículo.
+- **Tempo das ações:**
+
+| Ação | Tempo |
+|---|---|
+| Barricar | 4 s (Carpintaria encurta) |
+| Tirar barricada | 2 s |
+| Quebrar janela / subir para pular | 0,8 s |
+| Consertar muro | 3 s (conjunto de mecânico encurta) |
+| Montar módulo do mastro | 5 s (conjunto de mecânico encurta) |
+| Abastecer gerador | 2,5 s |
+| Pôr filtro ou munição | 2 s |
+| Pôr lenha | 1,5 s |
+| Recolher água | 1,5 s |
+| Canteiro | 2 s |
+| Abrir/fechar porta, abrir móvel, escada, entrar no carro | imediato |
+
+  Já tinham tempo: comer, beber, tratar, fabricar, consertar itens, recarregar, ligação direta, forçar fechadura.
 
 ### Sono, frio e chuva (fase 17)
 
@@ -314,4 +339,5 @@ Antes de iniciarmos a lógica, preciso que você me oriente a:
 | 18 | Saqueadores: acampamentos, patrulhas, assaltos a vilas (reais e simulados) | **feito** |
 | 19 | Prédios de 2 e 3 andares iluminados, escadas, andares de cima, pulo da janela | **feito** |
 | 20 | Sons provisórios com tabela central | **feito** |
+| 21 | Menu pequeno do [E] para tudo no mundo, tempos das ações, comum lento que agarra | **feito** |
 | 9 | Construção em bordas (estilo The Sims) com 3 abas, utilidades e decoração, rede de energia (eólico, combustão, baterias), mesa de reparos, dia/noite, clima e iluminação | **feito** |

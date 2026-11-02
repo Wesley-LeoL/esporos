@@ -30,6 +30,10 @@ func title() -> String:
 	return "Corpo de " + nome
 
 
+func options(_p: Player) -> Array:
+	return [{"id": "ui:loot", "txt": "Revistar o corpo", "ok": true}]
+
+
 ## Abrir é local (janela de saque); a transferência vai pelo Player.act.
 func interact(_player: Player) -> void:
 	pass

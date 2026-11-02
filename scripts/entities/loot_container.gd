@@ -58,6 +58,14 @@ func prompt() -> String:
 	return "[E] Revistar (%d itens)" % n
 
 
+func options(p: Player) -> Array:
+	var w := Game.world
+	if w != null and w.is_locked(self):
+		var has_key := not p.data.key_for(w.lock_of(self)).is_empty()
+		return [{"id": "unlock", "txt": "Usar a chave" if has_key else "Forçar a fechadura", "ok": true}]
+	return [{"id": "ui:loot", "txt": "Abrir " + title().to_lower(), "ok": true}]
+
+
 func _lock_hint(w: World) -> String:
 	var p := w.local_player()
 	if p == null or p.data == null:

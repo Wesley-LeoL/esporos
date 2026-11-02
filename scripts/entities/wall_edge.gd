@@ -143,11 +143,11 @@ func prompt() -> String:
 	if barricade > 0.0:
 		return "[E] Tirar barricada (%d%%)" % int(barricade / float(DB.BUILDS["barricada"]["vida"]) * 100.0)
 	if map and is_window() and not kind_is_broken_window(kind):
-		return "[E] Quebrar a janela (barulho)"
+		return "[E] Janela: quebrar ou barricar"
 	if map and kind_is_broken_window(kind) and upper_floor():
 		return "[E] Pular da janela (%d m)" % int(3.5 * float(world.houses[house_id]["andar"]))
 	if map and kind_is_broken_window(kind):
-		return "Janela quebrada: dá para passar · barricada no modo construção"
+		return "[E] Barricar · janela quebrada (dá para passar)"
 	if fence_vid >= 0 and not is_door():
 		return "[E] Consertar muro (2 sucatas) · %d%%" % int(hp / maxf(1.0, max_hp) * 100.0) if hp < max_hp else ""
 	if not is_door():
@@ -160,6 +160,46 @@ func prompt() -> String:
 	if DB.BUILDS.has(kind):
 		nome = String(DB.BUILDS[kind]["nome"]).to_lower()
 	return "[E] %s %s" % ["Fechar" if open else "Abrir", nome]
+
+
+## Opções do [E] (menu pequeno perto do personagem). Cada uma: {id, txt, ok}.
+func options(p: Player) -> Array:
+	var out: Array = []
+	if barricade > 0.0:
+		out.append({"id": "tirar_barricada", "txt": "Tirar barricada (%d%%)" % int(barricade / float(DB.BUILDS["barricada"]["vida"]) * 100.0), "ok": true})
+	if is_door() and world.is_locked(self):
+		var has_key := not p.data.key_for(world.lock_of(self)).is_empty()
+		out.append({"id": "unlock", "txt": "Usar a chave" if has_key else "Forçar a fechadura", "ok": true})
+	elif is_door() and barricade <= 0.0:
+		out.append({"id": "porta", "txt": "Fechar a porta" if open else "Abrir a porta", "ok": true})
+	if map and is_window() and not kind_is_broken_window(kind) and barricade <= 0.0:
+		out.append({"id": "quebrar", "txt": "Quebrar a janela (barulho)", "ok": true})
+	if map and kind_is_broken_window(kind) and upper_floor() and barricade <= 0.0:
+		out.append({"id": "pular", "txt": "Pular da janela (%d m)" % int(3.5 * float(world.houses[house_id]["andar"])), "ok": true})
+	if barricade <= 0.0 and world.barricade_spot(key()):
+		var can := world.can_barricade(p)
+		out.append({"id": "barricar", "txt": "Barricar (2 madeiras, 4 pregos, martelo)", "ok": can})
+	if fence_vid >= 0 and not is_door() and hp < max_hp:
+		out.append({"id": "consertar_muro", "txt": "Consertar o muro (2 sucatas)", "ok": true})
+	return out
+
+
+## Servidor: executa a opção escolhida.
+func do_option(p: Player, id: String) -> void:
+	match id:
+		"tirar_barricada":
+			world.remove_barricade(p, key())
+		"porta":
+			if barricade <= 0.0 and not world.is_locked(self):
+				interact(p)
+		"quebrar":
+			world.break_window(p, key())
+		"pular":
+			world.jump_window(p, key())
+		"barricar":
+			world.barricade_edge(p, key())
+		"consertar_muro":
+			world.repair_fence(p, key())
 
 
 ## Servidor.

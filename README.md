@@ -8,7 +8,7 @@ Abra a pasta no Godot 4.7+ (versão padrão, não .NET) e aperte F5. O projeto j
 **Controles:** `WASD` mover · mouse mira · `Espaço`/clique atacar · `F` empurrar · `E` interagir · `Tab` ou `I` menu · `X` demolir · `F5` salvar · `Esc` cancelar · `F1` ou `` ` `` console de testes.
 
 ## Controles
-WASD move · o personagem olha para o mouse · Shift corre · C agacha · Espaço/clique ataca na direção do mouse · F empurra · R recarrega · E interage (caixas, NPCs, veículos; dentro do veículo, sai) · Tab abre o terminal (inventário, corpo, habilidades, implantes, mapa) · I inventário · M mapa · B modo construção · V status do veículo (dentro dele) · X demolição · 1 a 5 barra rápida · F5 salva · F1 console.
+WASD move · o personagem olha para o mouse · Shift corre · C agacha · Espaço/clique ataca na direção do mouse · F empurra (e solta quando agarrado) · R recarrega · E interage: abre um menu pequeno com as opções do objeto (carro, janela, porta, máquinas...; dentro do veículo, sai) · Tab abre o terminal (inventário, corpo, habilidades, implantes, mapa) · I inventário · M mapa · B modo construção · V status do veículo (dentro dele) · X demolição · 1 a 5 barra rápida · F5 salva · F1 console.
 
 **Inventário em grade:** botão direito abre as opções do item; arrastar com o botão esquerdo reorganiza ou move entre bolsos, mochila, coldre e o recipiente aberto; dois cliques passam o item entre o recipiente e o inventário; "Organizar" ordena por tipo. Caixas, baús, sacos, cadáveres e porta-malas abrem a grade deles ao lado da sua.
 

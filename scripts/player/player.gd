@@ -14,10 +14,10 @@ const FACING_NAMES := ["L", "SE", "S", "SO", "O", "NO", "N", "NE"]
 const SPEED := 100.0
 const ISO_Y_SCALE := 0.5
 const ACTIONS := ["hotbar", "use_item", "treat", "craft", "install", "maintain", "interact", "build", "demolish",
-	"attack", "save", "move", "drop", "repair", "refuel_station", "unlock", "shove", "sleep", "wake", "stairs", "unwear", "take", "take_all", "store", "remove_implant", "reload", "cancel", "examine", "deliver", "donate", "buy", "vehicle", "reorder", "sort_inv",
+	"attack", "save", "move", "drop", "repair", "refuel_station", "unlock", "shove", "sleep", "wake", "stairs", "opt", "unwear", "take", "take_all", "store", "remove_implant", "reload", "cancel", "examine", "deliver", "donate", "buy", "vehicle", "reorder", "sort_inv",
 	"loot_order", "sort_loot"]
 ## Ações que levam tempo (barra de progresso; mover-se ou levar dano interrompe).
-const TIMED := ["treat", "install", "remove_implant", "maintain", "craft", "reload", "repair", "use_item", "vehicle", "unlock"]
+const TIMED := ["treat", "install", "remove_implant", "maintain", "craft", "reload", "repair", "use_item", "vehicle", "unlock", "opt"]
 const TREAT_NAMES := {"antibiotico": "Aplicando antibiótico", "desinfetar": "Desinfetando", "enfaixar": "Enfaixando",
 	"imobilizar": "Imobilizando"}
 ## Vestir (roupa, máscara, mochila, coldre) é imediato.
@@ -548,6 +548,8 @@ func _run_act(action: String, args: Array) -> void:
 			world.interact(self, str(args[0]))
 		"unlock":
 			world.try_unlock(self, str(args[0]))
+		"opt":
+			world.interact_opt(self, str(args[0]), str(args[1]))
 		"refuel_station":
 			var sn2 := world.node_of(str(args[0])) as Structure
 			if sn2 != null and sn2.kind in Structure.STATIONS and Structure.supply_of(sn2.kind).size() > 0 \
@@ -676,6 +678,15 @@ func _duration(action: String, args: Array, patient: Player) -> float:
 			return 5.0 * cib
 		"craft":
 			return 3.5
+		"opt":
+			var ot: Array = OPT_TIMES.get(str(args[1]), [0.0, ""])
+			var k := 1.0
+			match str(args[1]):
+				"barricar", "tirar_barricada":
+					k = 1.0 - 0.06 * float(data.level("carpintaria"))
+				"consertar_muro", "mastro":
+					k = mec
+			return float(ot[0]) * k
 		"unlock":
 			var un := world.node_of(str(args[0]))
 			return world.unlock_time(self, world.lock_of(un)) if un != null and world.is_locked(un) else 0.0
@@ -716,6 +727,8 @@ func _busy_text(action: String, args: Array, patient: Player) -> String:
 			return "Manutenção do implante"
 		"craft":
 			return "Fabricando " + String(DB.CRAFTS[str(args[0])]["nome"])
+		"opt":
+			return String(OPT_TIMES.get(str(args[1]), [0.0, "Ocupado"])[1])
 		"unlock":
 			var un2 := world.node_of(str(args[0]))
 			return "Destrancando" if un2 != null and not data.key_for(world.lock_of(un2)).is_empty() else "Forçando a fechadura"
@@ -846,6 +859,62 @@ func _server_attack(_dir_index: int, aim_angle: float) -> void:
 		data.on_melee_hit()
 		world.make_noise(pos, 150.0)
 		world.sfx_at("golpe_acerto", pos)
+		if data.grab_t > 0.0:
+			data.grab_t = maxf(0.0, data.grab_t - 0.7)  # bater ajuda a se soltar
+
+
+## Tempo (s) e texto da barra de cada opção do menu do [E]; 0 = imediato.
+const OPT_TIMES := {"barricar": [4.0, "Barricando"], "tirar_barricada": [2.0, "Tirando a barricada"],
+	"quebrar": [0.8, "Quebrando a janela"], "pular": [0.8, "Subindo na janela"], "consertar_muro": [3.0, "Consertando o muro"],
+	"abastecer": [2.5, "Abastecendo o gerador"], "mastro": [5.0, "Montando o mastro"], "insumo": [2.0, "Abastecendo a máquina"],
+	"agua": [1.5, "Recolhendo água"], "canteiro": [2.0, "Cuidando do canteiro"], "lenha": [1.5, "Pondo lenha"], "porta": [0.0, ""]}
+
+
+## [E] num objeto: uma opção só é feita direto; várias abrem o menu pequeno.
+func press_interact() -> void:
+	_update_nearby()
+	if nearby == null or not is_instance_valid(nearby):
+		return
+	var opts: Array = nearby.options(self) if nearby.has_method("options") else []
+	if opts.is_empty():
+		act("interact", [world.key_of(nearby)])
+	elif opts.size() == 1:
+		if opts[0]["ok"]:
+			choose_option(nearby, String(opts[0]["id"]))
+		else:
+			Game.say("Não dá: %s." % String(opts[0]["txt"]).to_lower())
+	elif Game.hud != null:
+		Game.hud.show_world_menu(nearby, opts)
+
+
+## Executa a opção escolhida no menu do [E] (ou a única opção).
+func choose_option(node: Node, id: String) -> void:
+	if node == null or not is_instance_valid(node):
+		return
+	var key := world.key_of(node)
+	if id.begins_with("ui:") and Game.hud != null:
+		match id:
+			"ui:loot":
+				Game.hud.open_loot(node)
+			"ui:vila":
+				Game.hud.open_village((node as Npc).village_id)
+			"ui:estacao":
+				Game.hud.open_station(node as Structure)
+			"ui:veiculo":
+				Game.hud.open_vehicle(node as Vehicle)
+		return
+	if id.begins_with("veh:"):
+		act("vehicle", [key, id.substr(4)])
+		return
+	match id:
+		"dormir":
+			act("sleep")
+		"unlock":
+			act("unlock", [key])
+		"escada":
+			act("stairs", [(node as Stair).cell.x, (node as Stair).cell.y])
+		_:
+			act("opt", [key, id])
 
 
 ## Sons do personagem (todos os peers tocam para todos os personagens que veem): passos e
@@ -883,6 +952,10 @@ func _server_shove(aim_angle: float) -> void:
 		return
 	data.spend_stamina(8.0)
 	attack_flash = 0.15
+	if data.grab_t > 0.0:
+		data.grab_t = 0.0
+		Game.tell(peer, "Você se soltou.")
+		_sync_t = 0.0
 	var pos := position if is_local() else net_pos
 	var dir := Vector2.from_angle(aim_angle)
 	var any := false
@@ -1049,22 +1122,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("interact") and in_veh != null:
 		act("vehicle", [world.key_of(in_veh), "exit"])
 	elif event.is_action_pressed("interact") and nearby != null and is_instance_valid(nearby):
-		if nearby.is_in_group("beds"):
-			act("sleep")
-		elif nearby is Stair:
-			act("stairs", [(nearby as Stair).cell.x, (nearby as Stair).cell.y])
-		elif world.is_locked(nearby):
-			act("unlock", [world.key_of(nearby)])
-		elif nearby is Vehicle and Game.hud != null:
-			Game.hud.open_vehicle(nearby)
-		elif (nearby is LootContainer or nearby is Corpse) and Game.hud != null:
-			Game.hud.open_loot(nearby)
-		elif nearby is Npc and Game.hud != null:
-			Game.hud.open_village((nearby as Npc).village_id)
-		elif nearby is Structure and (nearby as Structure).kind in Structure.STATIONS and Game.hud != null:
-			Game.hud.open_station(nearby as Structure)
-		else:
-			act("interact", [world.key_of(nearby)])
+		press_interact()
 	elif event.is_action_pressed("cancel"):
 		build_kind = ""
 		demolish = false

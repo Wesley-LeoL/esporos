@@ -1633,6 +1633,39 @@ func _window_broken(k: Vector3i, new_kind: String) -> void:
 		wn.refresh()
 
 
+## Tem o que precisa para barricar? (materiais no inventário ou por perto, e martelo)
+func can_barricade(p: Player) -> bool:
+	var def: Dictionary = DB.BUILDS["barricada"]
+	return p.data.missing_tools(def["ferramentas"]) == "" and (p.data.can_afford(def["custo"]) or afford_near(p, def["custo"]))
+
+
+## Servidor: prega a barricada na borda k ([E] na janela, porta ou vão).
+func barricade_edge(p: Player, k: Vector3i) -> void:
+	var def: Dictionary = DB.BUILDS["barricada"]
+	if not barricade_spot(k):
+		return
+	if p.data.missing_tools(def["ferramentas"]) != "":
+		Game.tell(p.peer, "Precisa de martelo.")
+		return
+	if not afford_near(p, def["custo"]):
+		Game.tell(p.peer, "Faltam materiais: %s." % DB.cost_text(def["custo"]))
+		return
+	pay_near(p, def["custo"])
+	_set_barricade.rpc(k, float(def["vida"]))
+	make_noise(edge_pos(k), 240.0)
+	sfx_at("construir", edge_pos(k))
+	p.data.add_xp_map(def["xp"])
+	Game.tell(p.peer, "Barricada pregada.")
+
+
+## Servidor: opção escolhida no menu do [E] de um objeto do mundo.
+func interact_opt(p: Player, key: String, id: String) -> void:
+	var node := node_of(key) as Node2D
+	if node == null or not node.has_method("do_option") or not _near(p, node, 110.0):
+		return
+	node.do_option(p, id)
+
+
 ## Servidor: tira a barricada (devolve 1 madeira).
 func remove_barricade(p: Player, k: Vector3i) -> void:
 	var e: Dictionary = map_walls.get(k, walls.get(k, {}))

@@ -12,17 +12,17 @@ extends CharacterBody2D
 ## Atributos de cada tipo: vida, velocidade, dano, preparo do golpe (s), recuperação (s),
 ## resistência a cambalear (0-1), peso na escolha (raridade), escala e cor do desenho.
 const KINDS := {
-	"comum": {"hp": 40.0, "vel": 60.0, "dano": 9.0, "prep": 0.55, "rec": 0.75, "firme": 0.0, "peso": 58.0,
+	"comum": {"hp": 40.0, "vel": 40.0, "dano": 8.0, "prep": 0.6, "rec": 0.8, "firme": 0.0, "peso": 80.0, "agarra": 0.35,
 		"esc": Vector2(1, 1), "cor": Color(1, 1, 1)},
-	"corredor": {"hp": 26.0, "vel": 112.0, "dano": 7.0, "prep": 0.35, "rec": 0.55, "firme": 0.0, "peso": 14.0,
+	"corredor": {"hp": 26.0, "vel": 112.0, "dano": 7.0, "prep": 0.35, "rec": 0.55, "firme": 0.0, "peso": 6.0,
 		"esc": Vector2(0.9, 1.0), "cor": Color(0.85, 1.0, 0.85)},
-	"brutamonte": {"hp": 150.0, "vel": 42.0, "dano": 21.0, "prep": 0.9, "rec": 1.1, "firme": 0.75, "peso": 6.0,
+	"brutamonte": {"hp": 150.0, "vel": 42.0, "dano": 21.0, "prep": 0.9, "rec": 1.1, "firme": 0.75, "peso": 3.0,
 		"esc": Vector2(1.35, 1.3), "cor": Color(0.75, 0.68, 0.72)},
-	"explosivo": {"hp": 34.0, "vel": 50.0, "dano": 6.0, "prep": 0.6, "rec": 0.8, "firme": 0.0, "peso": 8.0,
+	"explosivo": {"hp": 34.0, "vel": 50.0, "dano": 6.0, "prep": 0.6, "rec": 0.8, "firme": 0.0, "peso": 4.0,
 		"esc": Vector2(1.12, 1.0), "cor": Color(1.0, 1.0, 0.55)},
-	"rastejante": {"hp": 30.0, "vel": 36.0, "dano": 11.0, "prep": 0.45, "rec": 0.7, "firme": 0.2, "peso": 8.0,
+	"rastejante": {"hp": 30.0, "vel": 36.0, "dano": 11.0, "prep": 0.45, "rec": 0.7, "firme": 0.2, "peso": 4.0,
 		"esc": Vector2(1.1, 0.55), "cor": Color(0.8, 0.85, 0.75)},
-	"chamador": {"hp": 60.0, "vel": 66.0, "dano": 8.0, "prep": 0.6, "rec": 0.8, "firme": 0.1, "peso": 3.0,
+	"chamador": {"hp": 60.0, "vel": 66.0, "dano": 8.0, "prep": 0.6, "rec": 0.8, "firme": 0.1, "peso": 1.5,
 		"esc": Vector2(0.95, 1.05), "cor": Color(1.0, 0.72, 0.9)},
 }
 const KIND_NAMES := {"comum": "infectado", "corredor": "corredor", "brutamonte": "brutamonte", "explosivo": "bolha de esporos",
@@ -386,13 +386,14 @@ func _attack(target: Node2D) -> void:
 		if kind == "rastejante":
 			limbs = ["perna_e", "perna_d"]
 		pl.server_hurt(limbs[randi() % limbs.size()], amount, 4.0 if elite else 2.5)
-		# cercado: os outros seguram (fica lento por um instante)
-		var around := 0
-		for n in get_tree().get_nodes_in_group("infected"):
-			if n != self and (n as Node2D).position.distance_to(pl.net_pos) < 34.0:
-				around += 1
-		if around >= 2 or kind == "brutamonte":
-			pl.data.grab_t = maxf(pl.data.grab_t, 1.2 if kind == "brutamonte" else 0.9)
+		# o comum pode agarrar no golpe: o jogador fica preso até se soltar (F empurra)
+		if randf() < float(KINDS[kind].get("agarra", 0.0)) and pl.data.grab_t <= 0.0:
+			pl.data.grab_t = 2.2
+			pl._sync_t = 0.0
+			_prep_t = 0.0
+			_cd = 0.9  # segurando, morde de novo mais rápido
+			Game.tell(pl.peer, "Um infectado te agarrou! [F] empurra para se soltar.")
+			world.sfx_at("infectado_ataque", position)
 		return
 	if target.has_method("take_hit"):
 		target.take_hit(amount, self)

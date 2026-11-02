@@ -54,6 +54,26 @@ func prompt() -> String:
 	return "[E] %s · %s · energia %d%% · estado %d%%" % [def()["nome"], st, int(fuel), int(cond)]
 
 
+## Opções do [E] no veículo (menu pequeno perto do personagem).
+func options(p: Player) -> Array:
+	var d := p.data
+	var out: Array = []
+	if locked:
+		out.append({"id": "veh:hotwire", "txt": "Ligação direta (Mecânica 2)", "ok": d.level("mecanica") >= 2})
+	else:
+		out.append({"id": "veh:drive", "txt": "Dirigir", "ok": driver == 0 and seats_free() > 0})
+		out.append({"id": "veh:ride", "txt": "Entrar como passageiro", "ok": seats_free() > 0})
+	if fuel < 99.5:
+		var gas := String(def()["energia"]) == "combustivel"
+		var have := d.count("combustivel") > 0 if gas else d.count("bateria") > 0
+		out.append({"id": "veh:refuel", "txt": "Abastecer (%s)" % ("galão" if gas else "bateria"), "ok": have})
+	if cond < 99.0:
+		out.append({"id": "veh:repair", "txt": "Consertar (1 metal, 2 sucatas)", "ok": d.can_afford({"metal": 1, "sucata": 2})})
+	out.append({"id": "ui:loot", "txt": "Porta-malas", "ok": not locked})
+	out.append({"id": "ui:veiculo", "txt": "Painel do veículo", "ok": true})
+	return out
+
+
 func interact(_p: Player) -> void:
 	pass
 

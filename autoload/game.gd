@@ -586,6 +586,16 @@ func debug_command(cmd: String) -> void:
 				p.teleport(bs6.position + Vector2(0, 10))
 				p.act("stairs", [bs6.cell.x, bs6.cell.y])
 				print("[stair] de %s para %s (%s) chao=%s casa=%s" % [bs6.cell, bs6.to, bs6.label, world.ground_cells.get(bs6.to, -1), world.house_cells.get(bs6.to, -1)])
+		"tpveh":
+			var bv7: Node2D = null
+			for n in get_tree().get_nodes_in_group("vehicles"):
+				if bv7 == null or (n as Node2D).position.distance_to(p.position) < bv7.position.distance_to(p.position):
+					bv7 = n as Node2D
+			if bv7 != null:
+				p.teleport(bv7.position + Vector2(0, 14))
+		"presse":
+			p.press_interact()
+			print("[E] perto=%s opcoes=%s menu=%s" % [p.nearby, p.nearby.options(p) if p.nearby != null and p.nearby.has_method("options") else [], hud.world_menu.visible if hud.world_menu != null else false])
 		"interact_near":
 			p._update_nearby()
 			if p.nearby != null:

@@ -66,6 +66,10 @@ func _village() -> VillageData:
 	return world.villages[village_id]
 
 
+func options(_p: Player) -> Array:
+	return [{"id": "ui:vila", "txt": "Falar com " + nome, "ok": true}]
+
+
 ## A conversa é local (painel da vila no HUD); as trocas vão pelo Player.act.
 func interact(_p: Player) -> void:
 	pass

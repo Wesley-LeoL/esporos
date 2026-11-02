@@ -16,6 +16,10 @@ func prompt() -> String:
 	return "[E] " + label
 
 
+func options(_p: Player) -> Array:
+	return [{"id": "escada", "txt": label, "ok": true}]
+
+
 func interact(_p: Player) -> void:
 	pass
 

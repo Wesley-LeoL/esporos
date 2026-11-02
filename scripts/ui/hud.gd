@@ -610,6 +610,124 @@ func open_village(vid: int) -> void:
 	open_window("village")
 
 
+# ------------------------------------------------------------------ menu do [E] no mundo
+## Painel pequeno ao lado do personagem com as opções do objeto (entrar no carro, barricar,
+## quebrar a janela...). Clique, número (1-9) ou [E] de novo para a primeira; Esc fecha.
+var world_menu: PanelContainer
+var _wm_box: VBoxContainer
+var _wm_node: Node
+var _wm_opts: Array = []
+var _wm_from := Vector2.ZERO
+
+
+func show_world_menu(node: Node, opts: Array) -> void:
+	if world_menu == null:
+		world_menu = _panel("card", 8, Vector4(10, 8, 10, 8))
+		world_menu.mouse_filter = Control.MOUSE_FILTER_STOP
+		ui.add_child(world_menu)
+		_wm_box = _vbox(4)
+		world_menu.add_child(_wm_box)
+	_clear(_wm_box)
+	_wm_node = node
+	_wm_opts = opts
+	var p := _player()
+	_wm_from = p.position if p != null else Vector2.ZERO
+	var title := _label(_node_title(node).to_upper(), S, UITheme.ACCENT)
+	_wm_box.add_child(title)
+	for i in opts.size():
+		var o: Dictionary = opts[i]
+		var b := Button.new()
+		b.text = "%d  %s" % [i + 1, String(o["txt"])]
+		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		b.disabled = not bool(o["ok"])
+		b.focus_mode = Control.FOCUS_NONE
+		var idx := i
+		b.pressed.connect(func() -> void: _world_menu_pick(idx))
+		_wm_box.add_child(b)
+	world_menu.visible = true
+	world_menu.reset_size()
+	_place_world_menu()
+	Sfx.play("ui_clique")
+
+
+func _node_title(node: Node) -> String:
+	if node is Vehicle:
+		return String((node as Vehicle).def()["nome"])
+	if node.has_method("title"):
+		return String(node.title())
+	if node is Structure:
+		return String(DB.BUILDS.get((node as Structure).kind, {}).get("nome", "Objeto"))
+	if node is WallEdge:
+		var w := node as WallEdge
+		if w.is_door():
+			return "Porta"
+		if w.is_window():
+			return "Janela"
+		return "Vão" if w.kind == "vao" else "Muro"
+	if node is Npc:
+		return (node as Npc).nome
+	return "Objeto"
+
+
+func _place_world_menu() -> void:
+	var p := _player()
+	if p == null or world_menu == null:
+		return
+	var sp := p.get_global_transform_with_canvas().origin * float(UITheme.UI_SCALE)
+	var pos := sp + Vector2(40, -world_menu.size.y * 0.5 - 30)
+	pos.x = clampf(pos.x, 8.0, ui.size.x - world_menu.size.x - 8.0)
+	pos.y = clampf(pos.y, 8.0, ui.size.y - world_menu.size.y - 8.0)
+	world_menu.position = pos.round()
+
+
+func close_world_menu() -> void:
+	if world_menu != null:
+		world_menu.visible = false
+	_wm_node = null
+
+
+func _world_menu_pick(i: int) -> void:
+	if i < 0 or i >= _wm_opts.size() or not bool(_wm_opts[i]["ok"]):
+		return
+	var p := _player()
+	var node := _wm_node
+	var id := String(_wm_opts[i]["id"])
+	close_world_menu()
+	if p != null and node != null and is_instance_valid(node):
+		p.choose_option(node, id)
+
+
+## Teclas com o menu aberto: número escolhe, [E] escolhe a primeira possível, Esc fecha.
+func _world_menu_input(event: InputEvent) -> bool:
+	if event.is_action_pressed("cancel"):
+		close_world_menu()
+		return true
+	if event.is_action_pressed("interact"):
+		for i in _wm_opts.size():
+			if bool(_wm_opts[i]["ok"]):
+				_world_menu_pick(i)
+				return true
+		close_world_menu()
+		return true
+	if event is InputEventKey and event.pressed and not event.echo:
+		var k := (event as InputEventKey).keycode
+		if k >= KEY_1 and k <= KEY_9:
+			_world_menu_pick(k - KEY_1)
+			return true
+	return false
+
+
+## O menu fecha se o jogador se afastar ou o objeto sumir.
+func _update_world_menu() -> void:
+	if world_menu == null or not world_menu.visible:
+		return
+	var p := _player()
+	if p == null or _wm_node == null or not is_instance_valid(_wm_node) or p.position.distance_to(_wm_from) > 40.0 or blocks_input():
+		close_world_menu()
+		return
+	_place_world_menu()
+
+
 ## O menu principal, uma janela separada, o menu de contexto ou a criação de personagem
 ## estão abertos (o personagem não anda).
 func blocks_input() -> bool:
@@ -825,6 +943,9 @@ func _input(event: InputEvent) -> void:
 	var p := _player()
 	if p == null or p.data == null:
 		return
+	if world_menu != null and world_menu.visible and _world_menu_input(event):
+		get_viewport().set_input_as_handled()
+		return
 	if event.is_action_pressed("cancel") and ctx_root.visible:
 		_close_ctx()
 	elif event.is_action_pressed("cancel") and window_kind != "":
@@ -1013,6 +1134,7 @@ func _process(delta: float) -> void:
 		veh_button.reset_size()
 		veh_button.position = Vector2((ui.size.x - veh_button.size.x) / 2.0, ui.size.y - veh_button.size.y - 120.0).round()
 	_update_hotbar(d)
+	_update_world_menu()
 	if not build_mode:
 		# com o menu aberto, a barra rápida fica dentro do inventário
 		hotbar_root.visible = not menu_root.visible
@@ -1297,7 +1419,7 @@ func _fill_build_bar(p: Player) -> void:
 	_clear(build_items)
 	for k: String in DB.BUILDS:
 		var def: Dictionary = DB.BUILDS[k]
-		if String(def.get("aba", "")) != build_tab:
+		if String(def.get("aba", "")) != build_tab or def.get("oculto", false):
 			continue
 		var card := Button.new()
 		card.custom_minimum_size = Vector2(118, 140)
@@ -2765,7 +2887,7 @@ func _win_build(p: Player) -> void:
 	sc.add_child(g)
 	for k: String in DB.BUILDS:
 		var def: Dictionary = DB.BUILDS[k]
-		if String(def.get("aba", "")) != build_tab:
+		if String(def.get("aba", "")) != build_tab or def.get("oculto", false):
 			continue
 		g.add_child(_build_card(p, d, k, def))
 
