@@ -98,6 +98,20 @@ func step(rng: RandomNumberGenerator, edge_ratio: float, near := false) -> void:
 		if pop <= 0:
 			fall()
 			return
+	# saqueadores simulados: vila rica atrai assaltos; guardas e cerca seguram parte
+	var rich := float(stock["comida"]) + float(stock["sucata"]) + float(stock["medico"])
+	if not near and rich > 30.0 and rng.randf() < 0.012:
+		var power := rng.randf_range(10.0, 30.0)
+		var guard := float(wall_tier) * 6.0 + float(level()) * 5.0
+		if power > guard:
+			for k in stock:
+				stock[k] = float(stock[k]) * 0.55
+			prosperity = maxf(0.0, prosperity - 12.0)
+			if power - guard > 12.0:
+				pop = maxi(0, pop - 1)
+			if pop <= 0:
+				fall()
+				return
 	stock[specialty] = float(stock[specialty]) + rng.randf_range(1.0, 4.0) + float(level())
 	stock["comida"] = float(stock["comida"]) - float(pop) * 0.25
 	stock["sucata"] = float(stock["sucata"]) + rng.randf_range(0.0, 1.0)

@@ -127,6 +127,11 @@ func _ready() -> void:
 			cont_keys += 1
 	check(locked_c > 5 and cont_keys > locked_c / 2, "%d móveis/caixas trancados, %d com chave escondida" % [locked_c, cont_keys])
 	check(locked_h > 3 and house_keys > 0, "%d prédios trancados, %d com chave num vizinho" % [locked_h, house_keys])
+	var camps := 0
+	for hid2 in w1.houses:
+		if int(w1.houses[hid2].get("camp", 0)) > 0:
+			camps += 1
+	check(camps >= 3, "%d acampamentos de saqueadores" % camps)
 	var sh := w1.random_spawn_house()
 	check(int(w1.houses[sh].get("lock", 0)) == 0, "o prédio de começo nunca está trancado")
 	check(w1.lock_level("c:%d" % w1.container_data.size()) == 0, "fechadura inexistente conta como aberta")

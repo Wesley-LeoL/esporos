@@ -20,6 +20,7 @@ var moving := false
 var atk_seq := 0
 var hp := 60.0
 var max_hp := 60.0
+var killed_by := "infectados"
 
 var _wander_t := 0.0
 var _goal := Vector2.ZERO
@@ -91,27 +92,29 @@ func take_hit(amount: float, _from: Node2D) -> void:
 	if not Net.is_server() or hp <= 0.0:
 		return
 	hp -= amount
+	killed_by = "saqueadores" if _from is Raider else "infectados"
 	if hp <= 0.0:
 		world.npc_died(self)
 
 
-## Infectado mais perto (para fugir ou lutar).
-func _nearest_infected(limit: float) -> Infected:
-	var best: Infected = null
+## Ameaça mais perto (infectado ou saqueador) para fugir ou lutar.
+func _nearest_infected(limit: float) -> Node2D:
+	var best: Node2D = null
 	var best_d := limit
-	for n in get_tree().get_nodes_in_group("infected"):
-		var e := n as Infected
-		var off := e.position - position
-		var d := Vector2(off.x, off.y * 2.0).length()
-		if d < best_d:
-			best_d = d
-			best = e
+	for g in ["infected", "raiders"]:
+		for n in get_tree().get_nodes_in_group(g):
+			var e := n as Node2D
+			var off := e.position - position
+			var d := Vector2(off.x, off.y * 2.0).length()
+			if d < best_d:
+				best_d = d
+				best = e
 	return best
 
 
 func _server_ai(delta: float) -> void:
 	_cd = maxf(0.0, _cd - delta)
-	var target: Infected = null
+	var target: Node2D = null
 	if role != "guarda":
 		# moradores e comerciante correm para longe dos infectados
 		var danger := _nearest_infected(170.0)
@@ -129,14 +132,15 @@ func _server_ai(delta: float) -> void:
 			return
 	if role == "guarda":
 		var best := 170.0
-		for n in get_tree().get_nodes_in_group("infected"):
-			var e := n as Infected
-			var off := e.position - position
-			var d := Vector2(off.x, off.y * 2.0).length()
-			var from_home := Vector2(e.position.x - home.x, (e.position.y - home.y) * 2.0).length()
-			if d < best and from_home < 420.0:
-				best = d
-				target = e
+		for g in ["infected", "raiders"]:
+			for n in get_tree().get_nodes_in_group(g):
+				var e := n as Node2D
+				var off := e.position - position
+				var d := Vector2(off.x, off.y * 2.0).length()
+				var from_home := Vector2(e.position.x - home.x, (e.position.y - home.y) * 2.0).length()
+				if d < best and from_home < 420.0:
+					best = d
+					target = e
 	var speed := 38.0
 	if target != null:
 		_goal = target.position

@@ -67,6 +67,7 @@ func generate() -> void:
 	_countryside()
 	_vehicles()
 	_house_keys()
+	_raider_camps()
 
 
 # ------------------------------------------------------------------ lugares
@@ -629,6 +630,26 @@ func _house_keys() -> void:
 				near.append(int(hc[0]))
 		if not near.is_empty():
 			_hide_key(near[rng.randi() % near.size()], "h:%d" % id, String(lh[2]))
+
+
+## Acampamentos de saqueadores: alguns prédios abandonados grandes, longe das vilas vivas.
+func _raider_camps() -> void:
+	var cands: Array = []
+	for id in w.houses:
+		var hd: Dictionary = w.houses[id]
+		var r: Rect2i = hd["rect"]
+		if hd["estado"] != "abandonada" or r.size.x * r.size.y < 12 or int(hd.get("lock", 0)) > 0:
+			continue
+		var far := true
+		for pl in w.places:
+			if pl["estado"] == "viva" and Vector2(r.get_center() - pl["cell"]).length() < float(pl["r"]) + 14.0:
+				far = false
+		if far:
+			cands.append(id)
+	cands.sort()
+	_shuffle(cands)
+	for i in mini(7, cands.size()):
+		w.houses[cands[i]]["camp"] = rng.randi_range(3, 5)
 
 
 func _hide_key(cid: int, lock: String, label: String) -> void:

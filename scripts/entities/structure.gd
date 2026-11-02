@@ -535,21 +535,23 @@ func _physics_process(delta: float) -> void:
 		_tracer_t = maxf(0.0, _tracer_t - delta)
 		var armed := not needs_supply() or fuel >= float(supply_of(kind)["tiro"]) - 0.01
 		if server and powered and armed and _cd <= 0.0:
-			var best: Infected = null
+			var best: Node2D = null
 			var best_d := 290.0
-			for n in get_tree().get_nodes_in_group("infected"):
-				var e := n as Infected
-				var off := e.position - position
-				var d := Vector2(off.x, off.y * 2.0).length()
-				if d < best_d:
-					best_d = d
-					best = e
+			for g in ["infected", "raiders"]:
+				for n in get_tree().get_nodes_in_group(g):
+					var e := n as Node2D
+					var off := e.position - position
+					var d := Vector2(off.x, off.y * 2.0).length()
+					if d < best_d:
+						best_d = d
+						best = e
 			if best != null:
 				var aim := GenArt.facing_of(best.position - position)
 				world.turret_fx.rpc(cell.x, cell.y, aim, best.position)
 				show_shot(aim, best.position)
 				best.take_damage(20.0, self, 0.1)
 				world.make_noise(position, 520.0)
+				world.sfx_at("torre_tiro", position)
 				_cd = 1.0
 				if needs_supply():
 					fuel = maxf(0.0, fuel - float(supply_of(kind)["tiro"]))

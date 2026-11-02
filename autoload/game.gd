@@ -553,6 +553,17 @@ func debug_command(cmd: String) -> void:
 			p.data.sono = float(arg)
 		"sleep":
 			p.act("sleep")
+		"raider":
+			# raider:arma[,dx,dy] (testes)
+			var ro := Vector2(220, 60) if a.size() < 3 else Vector2(float(a[1]), float(a[2]))
+			world.spawn_raider(p.position + ro, {"arma": a[0] if a[0] != "" else "pistola"})
+		"raid":
+			var pc5 := world.tile_pos(p.position)
+			var bv5: VillageData = null
+			for v5 in world.villages:
+				if bv5 == null or Vector2(v5.cell).distance_to(pc5) < Vector2(bv5.cell).distance_to(pc5):
+					bv5 = v5
+			world.spawn_raid(bv5)
 		"interact_near":
 			p._update_nearby()
 			if p.nearby != null:

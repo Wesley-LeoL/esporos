@@ -943,6 +943,16 @@ func _spawn_entity(d: Dictionary) -> Node:
 			npc.home = Game.v2(d.get("home", d["pos"]))
 			npc.setup_net()
 			node = npc
+		"raider":
+			var rd := Raider.new()
+			rd.world = self
+			rd.weapon = str(d.get("arma", "pistola"))
+			rd.position = Game.v2(d["pos"])
+			rd.home = Game.v2(d.get("home", d["pos"]))
+			rd.raid_vid = int(d.get("raid", -1))
+			rd.camp = int(d.get("camp", -1))
+			rd.setup_net()
+			node = rd
 		"veh":
 			var vh := Vehicle.new()
 			vh.world = self
@@ -1921,7 +1931,108 @@ func _random_spawn_pos(around: Vector2) -> Vector2:
 
 
 ## Servidor: população de infectados ao redor de cada jogador vivo.
+# ======================================================================= saqueadores
+## Mortes por acampamento (prédio -> saqueadores abatidos). Vai para o save.
+var camp_kills := {}
+var _patrol_cd := 240.0
+
+
+func spawn_raider(pos: Vector2, extra := {}) -> Raider:
+	var weapons := ["pistola", "pistola", "espingarda", "faca", "taco"]
+	var d := {"t": "raider", "pos": [pos.x, pos.y], "arma": weapons[rng.randi() % weapons.size()]}
+	d.merge(extra)
+	return spawn_net(d)
+
+
+func camp_alive(h: int) -> bool:
+	return houses.has(h) and int(houses[h].get("camp", 0)) > int(camp_kills.get(h, 0))
+
+
+## Servidor: saqueadores aparecem nos acampamentos perto dos jogadores, patrulhas raras
+## pelo mapa, e somem quando ficam longe de todo mundo.
+func _raider_step() -> void:
+	var alive := alive_players()
+	if alive.is_empty():
+		return
+	var by_camp := {}
+	for n in get_tree().get_nodes_in_group("raiders"):
+		var r := n as Raider
+		if nearest_player(r.position, 1700.0) == null:
+			r.queue_free()
+			continue
+		if r.camp >= 0:
+			by_camp[r.camp] = int(by_camp.get(r.camp, 0)) + 1
+	for h in houses:
+		if not camp_alive(h) or by_camp.has(h):
+			continue
+		var r2: Rect2i = houses[h]["rect"]
+		var hpos := ground.map_to_local(r2.get_center())
+		if nearest_player(hpos, 1100.0) == null or nearest_player(hpos, 380.0) != null:
+			continue
+		var left := int(houses[h]["camp"]) - int(camp_kills.get(h, 0))
+		for i in left:
+			var c := r2.position + Vector2i(rng.randi_range(0, r2.size.x - 1), rng.randi_range(0, r2.size.y - 1))
+			spawn_raider(ground.map_to_local(c), {"camp": h, "home": [hpos.x, hpos.y]})
+	# patrulha rara longe das vilas
+	_patrol_cd -= 6.0
+	if _patrol_cd <= 0.0:
+		_patrol_cd = rng.randf_range(240.0, 480.0)
+		var p: Player = alive[rng.randi() % alive.size()]
+		if not in_safe_zone(p.net_pos) and get_tree().get_nodes_in_group("raiders").size() < 6 and rng.randf() < 0.5:
+			var pos := _random_spawn_pos(p.net_pos)
+			for i in rng.randi_range(2, 3):
+				spawn_raider(pos + Vector2(rng.randf_range(-40, 40), rng.randf_range(-20, 20)))
+			Game.tell(p.peer, "Você ouve vozes e passos: um bando de saqueadores está por perto.")
+
+
+## Servidor: um saqueador morreu (conta para limpar o acampamento; ajudar uma vila rende
+## reputação).
+func raider_died(r: Raider, from: Node2D) -> void:
+	world_sfx_noise(r.position)
+	if r.camp >= 0:
+		camp_kills[r.camp] = int(camp_kills.get(r.camp, 0)) + 1
+		if not camp_alive(r.camp):
+			var p := nearest_player(r.position, 1200.0)
+			if p != null:
+				Game.tell(p.peer, "Acampamento de saqueadores limpo.")
+	if from is Player:
+		var vid := village_at(r.position)
+		if vid < 0 and r.raid_vid >= 0:
+			vid = r.raid_vid
+		if vid >= 0:
+			villages[vid].rep += 2.0
+
+
+func world_sfx_noise(pos: Vector2) -> void:
+	make_noise(pos, 160.0)
+
+
+## Servidor: um bando assalta a vila (perto de jogador: de verdade).
+func spawn_raid(v: VillageData) -> void:
+	var n := mini(3 + v.level() + rng.randi_range(0, 2), 8)
+	var pl := _place_of(v.id)
+	var R := float(pl.get("cerca", 10)) + rng.randf_range(9.0, 13.0)
+	var ang := rng.randf() * TAU
+	var center := Vector2(v.cell) + Vector2(cos(ang), sin(ang)) * R
+	for i in n:
+		var c := Vector2i((center + Vector2(rng.randf_range(-2, 2), rng.randf_range(-2, 2))).round())
+		var pos := ground.map_to_local(c)
+		spawn_raider(pos, {"raid": v.id, "home": [pos.x, pos.y]})
+	_tell_near(v, "Saqueadores estão atacando a vila %s!" % v.nome)
+
+
+## Servidor: os saqueadores chegaram ao centro e levaram parte do estoque.
+func village_robbed(vid: int) -> void:
+	var v := villages[vid]
+	for k in v.stock:
+		v.stock[k] = float(v.stock[k]) * 0.5
+	v.prosperity = maxf(0.0, v.prosperity - 15.0)
+	_tell_near(v, "Os saqueadores roubaram metade do estoque de %s!" % v.nome)
+	_villages_state.rpc(_villages_list())
+
+
 func _spawn_step() -> void:
+	_raider_step()
 	var alive := alive_players()
 	if alive.is_empty():
 		return
@@ -2082,7 +2193,7 @@ func fence_open(k: Vector3i) -> bool:
 
 
 ## Servidor: um infectado bateu num trecho da cerca.
-func damage_fence(k: Vector3i, amount: float) -> void:
+func damage_fence(k: Vector3i, amount: float, by := "infectados") -> void:
 	var e: Dictionary = map_walls.get(k, {})
 	if e.is_empty() or bool(e.get("broken", false)):
 		return
@@ -2092,7 +2203,7 @@ func damage_fence(k: Vector3i, amount: float) -> void:
 	if float(e["hp"]) <= 0.0:
 		var vid := int(e.get("vid", -1))
 		if vid >= 0:
-			_tell_near(villages[vid], "Os infectados abriram uma brecha na cerca de %s!" % villages[vid].nome)
+			_tell_near(villages[vid], "Os %s abriram uma brecha na cerca de %s!" % [by, villages[vid].nome])
 
 
 ## Todos os peers: vida de um trecho de cerca (0 = derrubado; > 0 depois de derrubado = reconstruído).
@@ -2225,6 +2336,11 @@ func _siege_step(v: VillageData, near: bool) -> void:
 	if v.siege_cd > 0.0:
 		return
 	v.siege_cd = rng.randf_range(160.0, 320.0)
+	# vila próspera chama a atenção dos saqueadores
+	var rich := float(v.stock["comida"]) + float(v.stock["sucata"]) + float(v.stock["medico"])
+	if v.level() >= 1 and rich > 30.0 and rng.randf() < 0.3:
+		spawn_raid(v)
+		return
 	if rng.randf() > 0.35 + v.infestation / 200.0:
 		return
 	spawn_horde(v)
@@ -2275,7 +2391,7 @@ func npc_died(npc: Npc) -> void:
 	var v := villages[npc.village_id]
 	v.pop = maxi(0, v.pop - 1)
 	v.infestation = minf(100.0, v.infestation + 6.0)
-	_tell_near(v, "%s, %s de %s, foi morto pelos infectados." % [npc.nome, Npc.ROLE_NAMES[npc.role].to_lower(), v.nome])
+	_tell_near(v, "%s, %s de %s, foi morto pelos %s." % [npc.nome, Npc.ROLE_NAMES[npc.role].to_lower(), v.nome, npc.killed_by])
 	spawn_net({"t": "corpse", "pos": [npc.position.x, npc.position.y], "nome": npc.nome, "items": []})
 	npc.queue_free()
 	if v.pop <= 0 and not v.infested:
@@ -3100,7 +3216,7 @@ func world_deltas() -> Dictionary:
 		if (wn2.open if wn2 != null else bool(map_walls[k2].get("open", false))):
 			doors.append([k2.x, k2.y, k2.z])
 	return {"version": SAVE_VERSION, "seed": seed_value, "structures": st, "floors": floors, "removed": removed,
-		"containers": cont, "chests": ch, "villages": vil, "walls": wl, "map_doors": doors, "unlocked": unlocked.keys(), "bars": bars, "broken_win": broken_win, "fence": fence, "team_house": team_house, "weather": weather.duplicate(),
+		"containers": cont, "chests": ch, "villages": vil, "walls": wl, "map_doors": doors, "unlocked": unlocked.keys(), "camps": camp_kills.duplicate(), "bars": bars, "broken_win": broken_win, "fence": fence, "team_house": team_house, "weather": weather.duplicate(),
 		"weather_until": _weather_until}
 
 
@@ -3183,6 +3299,9 @@ func apply_deltas(save: Dictionary) -> void:
 				wn3.set_open(true)
 	for lk in save.get("unlocked", []):
 		unlocked[str(lk)] = true
+	var ck: Dictionary = save.get("camps", {})
+	for hk in ck:
+		camp_kills[int(hk)] = int(ck[hk])
 	for bw in save.get("broken_win", []):
 		var kw := Vector3i(int(bw[0]), int(bw[1]), int(bw[2]))
 		if map_walls.has(kw):
