@@ -525,7 +525,7 @@ func _physics_process(delta: float) -> void:
 				var e2 := n as Infected
 				var o2 := e2.position - position
 				if Vector2(o2.x, o2.y * 2.0).length() < 26.0:
-					e2.take_damage(7.0, self)
+					e2.take_damage(7.0, self, 0.0)
 	if kind == "torre":
 		_cd -= delta
 		_tracer_t = maxf(0.0, _tracer_t - delta)
@@ -544,7 +544,7 @@ func _physics_process(delta: float) -> void:
 				var aim := GenArt.facing_of(best.position - position)
 				world.turret_fx.rpc(cell.x, cell.y, aim, best.position)
 				show_shot(aim, best.position)
-				best.take_damage(20.0, self)
+				best.take_damage(20.0, self, 0.1)
 				world.make_noise(position, 520.0)
 				_cd = 1.0
 				if needs_supply():

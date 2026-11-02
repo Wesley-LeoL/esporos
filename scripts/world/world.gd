@@ -413,6 +413,7 @@ func _make_wall(k: Vector3i, from_map := false) -> WallEdge:
 	w.cell = Vector2i(k.x, k.y)
 	w.dir = k.z
 	w.open = bool(src.get("open", false))
+	w.barricade = float(src.get("bar", 0.0))
 	w.world = self
 	w.position = edge_pos(k)
 	entities.add_child(w)
@@ -906,7 +907,7 @@ func _spawn_entity(d: Dictionary) -> Node:
 		"inf":
 			var e := Infected.new()
 			e.world = self
-			e.setup(bool(d["elite"]))
+			e.setup(bool(d["elite"]), str(d.get("kind", "comum")))
 			e.legacy = bool(d.get("legacy", false))
 			e.legacy_name = str(d.get("legacy_name", ""))
 			e.position = Game.v2(d["pos"])
@@ -1391,7 +1392,194 @@ static func build_type(kind: String) -> String:
 
 
 static func is_edge_kind(kind: String) -> bool:
-	return build_type(kind) in ["parede", "porta"]
+	return build_type(kind) in ["parede", "porta", "barricada"]
+
+
+# ======================================================================= janelas e barricadas
+## Borda que aceita barricada: janela (inteira ou quebrada), porta, ou vão de um prédio do mapa.
+func barricade_spot(k: Vector3i) -> bool:
+	var e: Dictionary = map_walls.get(k, walls.get(k, {}))
+	if e.is_empty():
+		return house_gap_of(k) >= 0
+	if float(e.get("bar", 0.0)) > 0.0:
+		return false
+	var kd := String(e["kind"])
+	return WallEdge.kind_is_door(kd) or WallEdge.kind_is_window(kd) or kd == "janela"
+
+
+## Vão sem parede de um prédio do mapa (-1 = não é).
+func house_gap_of(k: Vector3i) -> int:
+	if map_walls.has(k):
+		return -1
+	for c in [Vector2i(k.x, k.y), Vector2i(k.x, k.y) + (Vector2i(1, 0) if k.z == 0 else Vector2i(0, 1))]:
+		var h := int(house_cells.get(c, -1))
+		if h >= 0 and k in houses[h].get("windows", []):
+			return h
+	return -1
+
+
+@rpc("authority", "call_local", "reliable")
+func _set_barricade(k: Vector3i, hp: float) -> void:
+	var e: Dictionary = map_walls.get(k, walls.get(k, {}))
+	if e.is_empty():
+		var h := house_gap_of(k)
+		if h < 0 or hp <= 0.0:
+			return
+		# vão de prédio: vira uma borda do mapa só com a barricada
+		map_walls[k] = {"kind": "vao", "open": false, "h": h}
+		e = map_walls[k]
+		_add_wall_chunk(k)
+	var had := float(e.get("bar", 0.0)) > 0.0
+	e["bar"] = hp
+	var wn: WallEdge = wall_nodes.get(k)
+	if wn == null and is_loaded(Vector2i(k.x, k.y)):
+		wn = _make_wall(k, map_walls.has(k))
+		_track(Vector2i(k.x, k.y), wn)
+	if wn != null:
+		wn.set_barricade(hp)
+	if had and hp <= 0.0 and Net.is_server():
+		sfx_at("barricada_quebra", edge_pos(k))
+		var p := nearest_player(edge_pos(k), 900.0)
+		if p != null:
+			Game.tell(p.peer, "Uma barricada foi derrubada!")
+	if Net.is_server():
+		_check_shelter(int(e.get("h", -1)))
+
+
+## Registra a borda nova no chunk dela (para carregar/descarregar com o resto).
+func _add_wall_chunk(k: Vector3i) -> void:
+	var ch := chunk_of(Vector2i(k.x, k.y))
+	if not map_walls_by_chunk.has(ch):
+		map_walls_by_chunk[ch] = []
+	if not k in map_walls_by_chunk[ch]:
+		map_walls_by_chunk[ch].append(k)
+
+
+## A borda deixa passar? (porta aberta, janela quebrada ou vão, sem barricada)
+func edge_passable(k: Vector3i) -> bool:
+	var e: Dictionary = map_walls.get(k, walls.get(k, {}))
+	if e.is_empty():
+		return true
+	if float(e.get("bar", 0.0)) > 0.0:
+		return false
+	var kd := String(e["kind"])
+	if kd == "vao":
+		return true
+	var wn: WallEdge = wall_nodes.get(k)
+	var open := wn.open if wn != null else bool(e.get("open", false))
+	return (WallEdge.kind_is_door(kd) and open) or WallEdge.kind_is_broken_window(kd)
+
+
+## Servidor: um prédio do mapa todo fechado (sem janela quebrada, vão ou porta aberta sem
+## barricada) e com ao menos uma barricada vira o abrigo da equipe.
+func _check_shelter(h: int) -> void:
+	if h < 0 or not houses.has(h) or team_house == h:
+		return
+	var edges: Array = (houses[h].get("windows", []) as Array).duplicate()
+	for dd in houses[h].get("doors", []):
+		edges.append(dd[0])
+	var bars := 0
+	for k: Vector3i in edges:
+		if edge_passable(k):
+			return
+		if float(map_walls.get(k, {}).get("bar", 0.0)) > 0.0:
+			bars += 1
+	if bars == 0:
+		return
+	team_house = h
+	_shelter_set.rpc(h)
+
+
+@rpc("authority", "call_local", "reliable")
+func _shelter_set(h: int) -> void:
+	team_house = h
+	Game.say("Prédio todo fechado: agora é o abrigo da equipe (vocês acordam aqui).")
+
+
+## Servidor: quebra a janela inteira (barulho; de mão vazia pode cortar o braço).
+func break_window(p: Player, k: Vector3i) -> void:
+	var e: Dictionary = map_walls.get(k, {})
+	if e.is_empty() or not WallEdge.kind_is_window(String(e["kind"])) or WallEdge.kind_is_broken_window(String(e["kind"])):
+		return
+	var kd := String(e["kind"])
+	var nk := kd.replace("_vitrine", "_janela_q").replace("_janela", "_janela_q")
+	if not GenCatalog.SHEETS.has(nk):
+		nk = kd
+	_window_broken.rpc(k, nk)
+	make_noise(edge_pos(k), 420.0)
+	sfx_at("vidro_quebra", edge_pos(k))
+	if p.data.weapon_inst().is_empty() and rng.randf() < 0.45:
+		p.data.damage_limb(["braco_e", "braco_d"][rng.randi() % 2], 9.0)
+		Game.tell(p.peer, "Você cortou o braço no vidro.")
+	else:
+		Game.tell(p.peer, "Vidro quebrado: dá para passar pela janela.")
+
+
+@rpc("authority", "call_local", "reliable")
+func _window_broken(k: Vector3i, new_kind: String) -> void:
+	if not map_walls.has(k):
+		return
+	map_walls[k]["kind"] = new_kind
+	map_walls[k]["quebrou"] = true
+	var wn: WallEdge = wall_nodes.get(k)
+	if wn != null:
+		wn.kind = new_kind
+		wn.refresh()
+
+
+## Servidor: tira a barricada (devolve 1 madeira).
+func remove_barricade(p: Player, k: Vector3i) -> void:
+	var e: Dictionary = map_walls.get(k, walls.get(k, {}))
+	if float(e.get("bar", 0.0)) <= 0.0:
+		return
+	_set_barricade.rpc(k, 0.0)
+	p.data.give("madeira", 1)
+	Game.tell(p.peer, "Barricada removida (1 madeira recuperada).")
+
+
+func house_at(pos: Vector2) -> int:
+	var t := tile_pos(pos)
+	return int(house_cells.get(Vector2i(floori(t.x), floori(t.y)), -1))
+
+
+## Servidor: infectado bate numa abertura fechada: barricada perde vida; porta fechada
+## (sem barricada) acaba arrombada.
+func bash_edge(k: Vector3i, amount: float) -> void:
+	var e: Dictionary = map_walls.get(k, walls.get(k, {}))
+	if e.is_empty():
+		return
+	if float(e.get("bar", 0.0)) > 0.0:
+		damage_barricade(k, amount)
+		return
+	if not WallEdge.kind_is_door(String(e["kind"])):
+		return
+	e["porta_hp"] = float(e.get("porta_hp", 70.0)) - amount
+	sfx_at("porta_golpe", edge_pos(k))
+	if float(e["porta_hp"]) <= 0.0:
+		e["porta_hp"] = 70.0
+		var wn: WallEdge = wall_nodes.get(k)
+		if wn != null and not wn.open:
+			unlocked["h:%d" % int(e.get("h", -1))] = true
+			wn.open = true
+			wn._apply_open()
+			wall_changed(wn)
+			sfx_at("porta_arrombada", edge_pos(k))
+
+
+## Para onde um infectado vai para entrar no prédio h: a abertura mais perto (passa se der;
+## senão bate na barricada ou na porta). Vector3i(.., -1) = nenhuma.
+func house_goal(h: int, from: Vector2) -> Vector3i:
+	var best := Vector3i(0, 0, -1)
+	var bd := 1e9
+	var edges: Array = (houses[h].get("windows", []) as Array).duplicate()
+	for dd in houses[h].get("doors", []):
+		edges.append(dd[0])
+	for k: Vector3i in edges:
+		var d := edge_pos(k).distance_to(from) - (200.0 if edge_passable(k) else 0.0)
+		if d < bd:
+			bd = d
+			best = k
+	return best
 
 
 func _in_reach(p: Player, pos: Vector2) -> bool:
@@ -1405,6 +1593,11 @@ func can_place_at(kind: String, c: Vector2i, p: Player = null, d := -1) -> bool:
 	if Vector2(c).length() > RADIUS - 3.0 or not DB.BUILDS.has(kind):
 		return false
 	var t := build_type(kind)
+	if t == "barricada":
+		if d < 0:
+			return false
+		var kb := Vector3i(c.x, c.y, d)
+		return barricade_spot(kb) and (p == null or _in_reach(p, edge_pos(kb)))
 	if t in ["parede", "porta"]:
 		if d < 0:
 			return false
@@ -1476,6 +1669,9 @@ func _openness(c: Vector2i) -> float:
 func _build_done(kind: String, x: int, y: int, d: int, extra: Dictionary) -> void:
 	var c := Vector2i(x, y)
 	var t := build_type(kind)
+	if t == "barricada":
+		_set_barricade(Vector3i(x, y, d), float(DB.BUILDS[kind]["vida"]))
+		return
 	if t in ["parede", "porta"]:
 		var k := Vector3i(x, y, d)
 		if not walls.has(k):
@@ -1623,6 +1819,73 @@ func _demolish_done(x: int, y: int, floor_only: bool) -> void:
 
 # ======================================================================= som
 ## Servidor: barulho em 'pos' (raio isométrico em px). Infectados no raio vão investigar.
+## Servidor: o chamador gritou. Todo infectado a ~700 px vem atrás de quem o feriu, e mais
+## alguns aparecem fora da vista.
+func infected_scream(e: Infected) -> void:
+	sfx_at("chamador_grito", e.position)
+	var who: Node2D = e._target
+	var goal := Infected._pos_of(who) if who != null and is_instance_valid(who) else e.position
+	for n in get_tree().get_nodes_in_group("infected"):
+		var o := n as Infected
+		if o == e:
+			continue
+		var off := o.position - e.position
+		if Vector2(off.x, off.y * 2.0).length() < 700.0:
+			if who != null and is_instance_valid(who):
+				o._target = who
+				o._chase_t = 6.0
+			else:
+				o.hear(goal)
+	var total := get_tree().get_nodes_in_group("infected").size()
+	for i in mini(rng.randi_range(2, 4), 48 - total):
+		spawn_infected(_random_spawn_pos(e.position), false, {"kind": Infected.roll_kind(rng, 0.5)})
+	var p := nearest_player(e.position, 900.0)
+	if p != null:
+		Game.tell(p.peer, "O infectado se encolheu e gritou! Outros estão vindo.")
+
+
+## Servidor: a bolha de esporos estourou: nuvem que contamina quem estiver perto sem
+## máscara (com máscara, gasta o filtro).
+func spore_burst(pos: Vector2) -> void:
+	_spore_fx.rpc(pos)
+	for p in alive_players():
+		var off := p.net_pos - pos
+		if Vector2(off.x, off.y * 2.0).length() < 90.0 and p.data != null:
+			if p.data.has_mask() and p.data.filter_pct() > 0.0:
+				p.data.equip["mascara"]["filtro"] = maxf(0.0, p.data.filter_pct() - 12.0)
+				Game.tell(p.peer, "A nuvem de esporos gastou o filtro da máscara.")
+			else:
+				p.data.pathogen = minf(100.0, p.data.pathogen + 14.0)
+				Game.tell(p.peer, "Você respirou a nuvem de esporos!")
+
+
+@rpc("authority", "call_local", "unreliable")
+func _spore_fx(pos: Vector2) -> void:
+	var fx := SporeCloud.new()
+	fx.position = pos
+	entities.add_child(fx)
+
+
+## Som num ponto do mundo para todos os peers (o servidor decide; cada um toca o seu).
+func sfx_at(name: String, pos: Vector2) -> void:
+	if Net.is_server() and is_inside_tree():
+		_sfx_rpc.rpc(name, pos)
+
+
+@rpc("authority", "call_local", "unreliable")
+func _sfx_rpc(name: String, pos: Vector2) -> void:
+	Sfx.play_at(name, pos)
+
+
+## Servidor: dano numa barricada (borda k).
+func damage_barricade(k: Vector3i, amount: float) -> void:
+	var wn: WallEdge = wall_nodes.get(k)
+	if wn == null or wn.barricade <= 0.0:
+		return
+	_set_barricade.rpc(k, maxf(0.0, wn.barricade - amount))
+	sfx_at("barricada_golpe", wn.position)
+
+
 func make_noise(pos: Vector2, radius: float) -> void:
 	for n in get_tree().get_nodes_in_group("infected"):
 		var e := n as Infected
@@ -1694,13 +1957,14 @@ func _spawn_step() -> void:
 			if elites < 12:
 				var pos := _random_spawn_pos(ppos)
 				if tile_pos(pos).length() < RADIUS + 3.0:
-					spawn_infected(pos, true)
+					spawn_infected(pos, true, {"kind": Infected.roll_kind(rng, 1.0)})
 			continue
 		var cap := 3 + int(clampf(tile_pos(ppos).length() / RADIUS, 0.0, 1.0) * 6.0)
 		if normal < cap:
 			var pos2 := _random_spawn_pos(ppos)
 			if tile_pos(pos2).length() < RADIUS and not in_safe_zone(pos2):
-				spawn_infected(pos2, false)
+				var edge := clampf(tile_pos(pos2).length() / RADIUS, 0.0, 1.0)
+				spawn_infected(pos2, false, {"kind": Infected.roll_kind(rng, edge)})
 	for v in villages:
 		if not v.infested:
 			continue
@@ -1712,7 +1976,8 @@ func _spawn_step() -> void:
 			if is_instance_valid(n) and (n as Node2D).position.distance_to(vpos) < 320.0:
 				near += 1
 		if near < 6:
-			spawn_infected(vpos + Vector2(rng.randf_range(-150, 150), rng.randf_range(-75, 75)), rng.randf() < 0.2)
+			spawn_infected(vpos + Vector2(rng.randf_range(-150, 150), rng.randf_range(-75, 75)), rng.randf() < 0.2,
+				{"kind": Infected.roll_kind(rng, 0.8)})
 
 
 # ======================================================================= simulação de vilas
@@ -1977,7 +2242,9 @@ func spawn_horde(v: VillageData, extra := 0) -> void:
 	var center := Vector2(v.cell) + Vector2(cos(ang), sin(ang)) * R
 	for i in n:
 		var c := Vector2i((center + Vector2(rng.randf_range(-3, 3), rng.randf_range(-3, 3))).round())
-		spawn_infected(ground.map_to_local(c), rng.randf() < 0.1, {"siege": v.id})
+		# hordas trazem brutamontes (bons em derrubar muro) e corredores
+		var hk := "brutamonte" if rng.randf() < 0.12 + 0.03 * float(v.wall_tier) else Infected.roll_kind(rng, 0.6)
+		spawn_infected(ground.map_to_local(c), rng.randf() < 0.1, {"siege": v.id, "kind": hk})
 	_tell_near(v, "Uma horda de %d infectados está atacando a vila %s!" % [n, v.nome])
 
 
@@ -2783,13 +3050,24 @@ func world_deltas() -> Dictionary:
 		var e4: Dictionary = map_walls[k4]
 		if e4.has("vid") and (bool(e4.get("broken", false)) or float(e4["hp"]) < float(e4["max"])):
 			fence.append([k4.x, k4.y, k4.z, 0.0 if bool(e4.get("broken", false)) else float(e4["hp"])])
+	var bars: Array = []
+	var broken_win: Array = []
+	for kb: Vector3i in map_walls:
+		var eb: Dictionary = map_walls[kb]
+		if float(eb.get("bar", 0.0)) > 0.0:
+			bars.append([kb.x, kb.y, kb.z, float(eb["bar"])])
+		if bool(eb.get("quebrou", false)):
+			broken_win.append([kb.x, kb.y, kb.z, String(eb["kind"])])
+	for kb2: Vector3i in walls:
+		if float(walls[kb2].get("bar", 0.0)) > 0.0:
+			bars.append([kb2.x, kb2.y, kb2.z, float(walls[kb2]["bar"])])
 	var doors: Array = []
 	for k2: Vector3i in map_walls:
 		var wn2: WallEdge = wall_nodes.get(k2)
 		if (wn2.open if wn2 != null else bool(map_walls[k2].get("open", false))):
 			doors.append([k2.x, k2.y, k2.z])
 	return {"version": SAVE_VERSION, "seed": seed_value, "structures": st, "floors": floors, "removed": removed,
-		"containers": cont, "chests": ch, "villages": vil, "walls": wl, "map_doors": doors, "unlocked": unlocked.keys(), "fence": fence, "team_house": team_house, "weather": weather.duplicate(),
+		"containers": cont, "chests": ch, "villages": vil, "walls": wl, "map_doors": doors, "unlocked": unlocked.keys(), "bars": bars, "broken_win": broken_win, "fence": fence, "team_house": team_house, "weather": weather.duplicate(),
 		"weather_until": _weather_until}
 
 
@@ -2872,6 +3150,22 @@ func apply_deltas(save: Dictionary) -> void:
 				wn3.set_open(true)
 	for lk in save.get("unlocked", []):
 		unlocked[str(lk)] = true
+	for bw in save.get("broken_win", []):
+		var kw := Vector3i(int(bw[0]), int(bw[1]), int(bw[2]))
+		if map_walls.has(kw):
+			map_walls[kw]["kind"] = str(bw[3])
+			map_walls[kw]["quebrou"] = true
+	for bb in save.get("bars", []):
+		var kb := Vector3i(int(bb[0]), int(bb[1]), int(bb[2]))
+		if walls.has(kb):
+			walls[kb]["bar"] = float(bb[3])
+		elif map_walls.has(kb):
+			map_walls[kb]["bar"] = float(bb[3])
+		else:
+			var hg := house_gap_of(kb)
+			if hg >= 0:
+				map_walls[kb] = {"kind": "vao", "open": false, "h": hg, "bar": float(bb[3])}
+				_add_wall_chunk(kb)
 	team_house = int(save.get("team_house", -1))
 	if save.has("weather"):
 		weather = save["weather"]

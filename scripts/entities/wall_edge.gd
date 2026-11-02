@@ -23,6 +23,8 @@ var partition := false
 var fence_vid := -1
 var hp := 0.0
 var max_hp := 0.0
+## Barricada pregada nesta borda (vida; 0 = nenhuma).
+var barricade := 0.0
 var world: World
 var low := false
 var _shape: CollisionPolygon2D
@@ -43,6 +45,25 @@ static func edge_ends(d: int) -> Array[Vector2]:
 	return [Vector2(hw, hh), Vector2(-hw, -hh)]
 
 
+static func kind_is_window(k: String) -> bool:
+	return k.ends_with("_janela") or k.ends_with("_vitrine") or k.ends_with("_janela_q")
+
+
+static func kind_is_broken_window(k: String) -> bool:
+	return k.ends_with("_janela_q")
+
+
+func is_window() -> bool:
+	return kind_is_window(kind)
+
+
+## Dá para passar? Porta aberta, janela quebrada ou vão, se não houver barricada.
+func passable() -> bool:
+	if barricade > 0.0:
+		return false
+	return (open and is_door()) or kind_is_broken_window(kind) or kind == "vao"
+
+
 static func kind_is_door(k: String) -> bool:
 	return k.ends_with("_porta") or String(DB.BUILDS.get(k, {}).get("tipo", "")) == "porta"
 
@@ -59,7 +80,7 @@ func _ready() -> void:
 	collision_layer = 1
 	collision_mask = 0
 	add_to_group("walls")
-	if is_door():
+	if is_door() or (map and is_window()) or barricade > 0.0:
 		add_to_group("interactable")
 	_check_damaged()
 	var ends := edge_ends(dir)
@@ -74,7 +95,22 @@ func _ready() -> void:
 
 
 func _apply_open() -> void:
-	_shape.set_deferred("disabled", open)
+	_shape.set_deferred("disabled", passable())
+	queue_redraw()
+
+
+func set_barricade(v: float) -> void:
+	barricade = v
+	if (barricade > 0.0 or is_door() or (map and is_window())) and not is_in_group("interactable"):
+		add_to_group("interactable")
+	elif barricade <= 0.0 and not is_door() and not (map and is_window()) and is_in_group("interactable"):
+		remove_from_group("interactable")
+	_apply_open()
+
+
+## O tipo mudou (janela quebrada).
+func refresh() -> void:
+	_apply_open()
 	queue_redraw()
 
 
@@ -97,6 +133,12 @@ func _check_damaged() -> void:
 
 
 func prompt() -> String:
+	if barricade > 0.0:
+		return "[E] Tirar barricada (%d%%)" % int(barricade / float(DB.BUILDS["barricada"]["vida"]) * 100.0)
+	if map and is_window() and not kind_is_broken_window(kind):
+		return "[E] Quebrar a janela (barulho)"
+	if map and kind_is_broken_window(kind):
+		return "Janela quebrada: dá para passar · barricada no modo construção"
 	if fence_vid >= 0 and not is_door():
 		return "[E] Consertar muro (2 sucatas) · %d%%" % int(hp / maxf(1.0, max_hp) * 100.0) if hp < max_hp else ""
 	if not is_door():
@@ -113,6 +155,12 @@ func prompt() -> String:
 
 ## Servidor.
 func interact(_p: Player) -> void:
+	if barricade > 0.0:
+		world.remove_barricade(_p, key())
+		return
+	if map and is_window() and not kind_is_broken_window(kind):
+		world.break_window(_p, key())
+		return
 	if fence_vid >= 0 and not is_door():
 		world.repair_fence(_p, key())
 		return
@@ -122,6 +170,9 @@ func interact(_p: Player) -> void:
 		Game.tell(_p.peer, "A porta está trancada.")
 		return
 	open = not open
+	world.sfx_at("porta_abre" if open else "porta_fecha", position)
+	if house_id >= 0:
+		world.call_deferred("_check_shelter", house_id)
 	_apply_open()
 	world.wall_changed(self)
 	world.make_noise(position, 140.0)
@@ -169,6 +220,12 @@ func _draw() -> void:
 			var k := hp / max_hp
 			tint = Color(1.0, 0.55 + 0.45 * k, 0.55 + 0.45 * k)
 		GenArt.draw_frame(self, kind, dir, mini(col, int(GenCatalog.SHEETS[kind]["cols"]) - 1), Vector2.ZERO, tint)
+	if barricade > 0.0 and GenCatalog.SHEETS.has("barricada"):
+		var bk := barricade / float(DB.BUILDS["barricada"]["vida"])
+		GenArt.draw_frame(self, "barricada", dir, 1 if low else 0, Vector2.ZERO, Color(1.0, 0.6 + 0.4 * bk, 0.6 + 0.4 * bk))
+		if bk < 1.0:
+			draw_rect(Rect2(-10, -50, 20, 3), Color(0, 0, 0, 0.75))
+			draw_rect(Rect2(-10, -50, 20.0 * clampf(bk, 0.0, 1.0), 3), Color("#c8a060"))
 	if fence_vid >= 0 and max_hp > 0.0 and hp < max_hp:
 		draw_rect(Rect2(-10, -58, 20, 3), Color(0, 0, 0, 0.75))
 		draw_rect(Rect2(-10, -58, 20.0 * clampf(hp / max_hp, 0.0, 1.0), 3), Color("#ffb84a"))

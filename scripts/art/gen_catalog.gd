@@ -7,6 +7,7 @@ extends RefCounted
 const SHEETS := {
 	"armadilha": {"path": "res://assets/art/generated/structures/armadilha.png", "fw": 60, "fh": 34, "ox": 30, "oy": 19, "cols": 1, "rows": 1},
 	"bancada": {"path": "res://assets/art/generated/structures/bancada.png", "fw": 56, "fh": 66, "ox": 28, "oy": 53, "cols": 1, "rows": 1},
+	"barricada": {"path": "res://assets/art/generated/structures/barricada.png", "fw": 48, "fh": 62, "ox": 24, "oy": 55, "cols": 2, "rows": 2},
 	"bateria_casa": {"path": "res://assets/art/generated/structures/bateria_casa.png", "fw": 40, "fh": 57, "ox": 20, "oy": 47, "cols": 2, "rows": 1},
 	"c_antena": {"path": "res://assets/art/generated/city/props/c_antena.png", "fw": 28, "fh": 99, "ox": 14, "oy": 92, "cols": 1, "rows": 1},
 	"c_ar_cond": {"path": "res://assets/art/generated/city/props/c_ar_cond.png", "fw": 46, "fh": 43, "ox": 23, "oy": 31, "cols": 1, "rows": 1},

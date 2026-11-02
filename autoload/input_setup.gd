@@ -20,6 +20,7 @@ const ACTIONS := {
 	"sprint": [KEY_SHIFT],
 	"sneak": [KEY_C],
 	"reload": [KEY_R],
+	"shove": [KEY_F],
 	"hot_1": [KEY_1],
 	"hot_2": [KEY_2],
 	"hot_3": [KEY_3],

@@ -306,6 +306,9 @@ const BUILDS := {
 		"ferramentas": ["martelo"], "xp": {"carpintaria": 8}, "desc": "Porta na borda do piso. [E] abre e fecha."},
 	"portao": {"nome": "Portão de metal", "aba": "fundacao", "tipo": "porta", "custo": {"metal": 3, "sucata": 2}, "req": {"metalurgia": 2},
 		"ferramentas": ["martelo", "serra"], "xp": {"metalurgia": 8}, "desc": "Portão reforçado. [E] abre e fecha."},
+	"barricada": {"nome": "Barricada", "aba": "fundacao", "tipo": "barricada", "vida": 160.0, "custo": {"madeira": 2, "pregos": 4}, "req": {},
+		"ferramentas": ["martelo"], "xp": {"carpintaria": 4},
+		"desc": "Tábuas pregadas numa janela, porta ou vão (dos prédios do mapa ou seus). Bloqueia a passagem até os infectados quebrarem. Feche um prédio inteiro para ele virar o abrigo da equipe."},
 	# ---- utilidades
 	"bancada": {"nome": "Bancada de fabricação", "aba": "utilidades", "tipo": "objeto", "custo": {"madeira": 4, "pregos": 6, "metal": 1}, "req": {},
 		"ferramentas": ["martelo"], "xp": {"carpintaria": 6}, "desc": "[E] abre as receitas técnicas (filtros, baterias, munição, armaduras)."},

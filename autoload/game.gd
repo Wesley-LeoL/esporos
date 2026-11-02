@@ -178,6 +178,19 @@ func debug_command(cmd: String) -> void:
 				p.data.equip["mascara"]["filtro"] = float(arg)
 		"spawn":
 			world.spawn_infected(p.position + Vector2(70, 35), arg == "elite")
+		"spawnk":
+			# spawnk:tipo[,dx,dy] (testes)
+			var off := Vector2(70, 35) if a.size() < 3 else Vector2(float(a[1]), float(a[2]))
+			world.spawn_infected(p.position + off, false, {"kind": a[0]})
+		"hurtinf":
+			# fere o infectado mais perto (testes): hurtinf:dano
+			var bi: Infected = null
+			for n in get_tree().get_nodes_in_group("infected"):
+				if bi == null or (n as Node2D).position.distance_to(p.position) < bi.position.distance_to(p.position):
+					bi = n as Infected
+			if bi != null:
+				bi.take_damage(float(arg), p)
+				print("[inf] %s hp=%.0f phase=%d" % [bi.kind, bi.hp, bi.phase])
 		"build":
 			p.build_kind = arg
 		"face":
@@ -517,6 +530,22 @@ func debug_command(cmd: String) -> void:
 				if arg != "":
 					(scs[0] as ScrollContainer).scroll_vertical = int(arg)
 				print("[scroll] ", (scs[0] as ScrollContainer).scroll_vertical)
+		"nearwin":
+			# janela do mapa mais perto: nearwin:quebrar | nearwin:barricar (testes)
+			var bkw := Vector3i(0, 0, -1)
+			var bdw := 1e9
+			for kw: Vector3i in world.map_walls:
+				var kdw := String(world.map_walls[kw]["kind"])
+				if WallEdge.kind_is_window(kdw) and world.edge_pos(kw).distance_to(p.position) < bdw:
+					bdw = world.edge_pos(kw).distance_to(p.position)
+					bkw = kw
+			if bkw.z >= 0:
+				if arg == "quebrar":
+					p.teleport(world.edge_pos(bkw) + Vector2(0, 14))
+					world.break_window(p, bkw)
+				else:
+					p.act("build", ["barricada", bkw.x, bkw.y, bkw.z])
+				print("[win] %s %s" % [bkw, world.map_walls[bkw]])
 		"interact_near":
 			p._update_nearby()
 			if p.nearby != null:

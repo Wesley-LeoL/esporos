@@ -14,7 +14,7 @@ const FACING_NAMES := ["L", "SE", "S", "SO", "O", "NO", "N", "NE"]
 const SPEED := 100.0
 const ISO_Y_SCALE := 0.5
 const ACTIONS := ["hotbar", "use_item", "treat", "craft", "install", "maintain", "interact", "build", "demolish",
-	"attack", "save", "move", "drop", "repair", "refuel_station", "unlock", "unwear", "take", "take_all", "store", "remove_implant", "reload", "cancel", "examine", "deliver", "donate", "buy", "vehicle", "reorder", "sort_inv",
+	"attack", "save", "move", "drop", "repair", "refuel_station", "unlock", "shove", "unwear", "take", "take_all", "store", "remove_implant", "reload", "cancel", "examine", "deliver", "donate", "buy", "vehicle", "reorder", "sort_inv",
 	"loot_order", "sort_loot"]
 ## Ações que levam tempo (barra de progresso; mover-se ou levar dano interrompe).
 const TIMED := ["treat", "install", "remove_implant", "maintain", "craft", "reload", "repair", "use_item", "vehicle", "unlock"]
@@ -35,6 +35,7 @@ var world: World
 
 # ---- replicado pelo dono
 var net_pos := Vector2.ZERO
+var shove_cd := 0.0
 var facing: int = Facing.S
 var moving := false
 var sprinting := false
@@ -252,6 +253,14 @@ func _local_control(delta: float) -> void:
 			aim = posmod(facing + randi_range(-2, 2), 8)  # não consegue mirar
 			aim_angle += randf_range(-1.2, 1.2)
 		act("attack", [aim, aim_angle])
+	if Input.is_action_just_pressed("shove") and not console_open and not menu_open and veh == null and not building_mode \
+			and shove_cd <= 0.0:
+		shove_cd = 1.0
+		attack_seq += 1
+		var to_s := get_global_mouse_position() - position
+		facing = GenArt.facing_of(to_s)
+		act("shove", [Vector2(to_s.x, to_s.y * 2.0).angle()])
+	shove_cd = maxf(0.0, shove_cd - delta)
 	if spores != null and world != null:
 		spores.modulate.a = clampf(world.spore_at(position) * 1.6, 0.15, 1.0)
 		_sky_t -= delta
@@ -509,6 +518,8 @@ func _run_act(action: String, args: Array) -> void:
 			world.try_place(str(args[0]), Vector2i(int(args[1]), int(args[2])), self, int(args[3]) if args.size() > 3 else -1)
 		"demolish":
 			world.try_demolish(Vector2i(int(args[0]), int(args[1])), self, int(args[2]) if args.size() > 2 else -1)
+		"shove":
+			_server_shove(float(args[0]))
 		"attack":
 			_server_attack(int(args[0]), float(args[1]) if args.size() > 1 else float(int(args[0])) * PI / 4.0)
 		"reload":
@@ -749,16 +760,50 @@ func _server_attack(_dir_index: int, aim_angle: float) -> void:
 	data.spend_stamina(data.attack_stamina())
 	var dmg := data.melee_damage()
 	var hit := false
+	var w := data.weapon_inst()
+	var heavy := 0.0 if w.is_empty() else clampf(float(Items.def(w["id"]).get("peso", 0.5)) / 3.0, 0.0, 0.4)
 	for n in get_tree().get_nodes_in_group("infected"):
 		var e := n as Infected
 		var off := e.position - pos
 		var iso := Vector2(off.x, off.y * 2.0)
 		if iso.length() < 65.0 and iso.normalized().dot(dir) > 0.3:
-			e.take_damage(dmg, self)
+			# golpe furtivo: alvo distraído, ou agachado chegando pelas costas
+			var sneak := e.unaware() or (sneaking and e.from_behind(pos))
+			if sneak:
+				Game.tell(peer, "Golpe furtivo!")
+			e.take_damage(dmg * (3.0 if sneak else 1.0), self, 0.35 + heavy + (0.6 if sneak else 0.0))
+			hit = true
+	for n2 in get_tree().get_nodes_in_group("raiders"):
+		var rd := n2 as Node2D
+		var off2 := rd.position - pos
+		var iso2 := Vector2(off2.x, off2.y * 2.0)
+		if iso2.length() < 65.0 and iso2.normalized().dot(dir) > 0.3:
+			rd.take_hit(dmg, self)
 			hit = true
 	if hit:
 		data.on_melee_hit()
 		world.make_noise(pos, 150.0)
+
+
+## Servidor: empurrão (afasta e derruba os infectados à frente, sem dano). Gasta estamina.
+func _server_shove(aim_angle: float) -> void:
+	if data.stamina < 6.0:
+		Game.tell(peer, "Sem fôlego para empurrar.")
+		return
+	data.spend_stamina(8.0)
+	attack_flash = 0.15
+	var pos := position if is_local() else net_pos
+	var dir := Vector2.from_angle(aim_angle)
+	var any := false
+	for n in get_tree().get_nodes_in_group("infected"):
+		var e := n as Infected
+		var off := e.position - pos
+		var iso := Vector2(off.x, off.y * 2.0)
+		if iso.length() < 52.0 and iso.normalized().dot(dir) > 0.2:
+			e.shove(pos)
+			any = true
+	if any:
+		world.sfx_at("empurrao", pos)
 
 
 ## Servidor: disparo de arma de fogo (hitscan no espaço isométrico, com dispersão).
@@ -802,7 +847,7 @@ func _server_fire(gun: Dictionary, aim_angle: float) -> void:
 		var end_iso := dir * best_t
 		ends.append(pos + Vector2(end_iso.x, end_iso.y * 0.5) + Vector2(0, -14))
 		if best != null:
-			best.take_damage(float(def["dano"]) * (1.0 - 0.4 * best_t / reach), self)
+			best.take_damage(float(def["dano"]) * (1.0 - 0.4 * best_t / reach), self, 0.25 if int(def.get("chumbos", 1)) > 1 else 0.08)
 			hits += 1
 	data.add_xp("pontaria", 0.6 + 2.0 * float(hits))
 	world.shot_fx.rpc(muzzle, ends)

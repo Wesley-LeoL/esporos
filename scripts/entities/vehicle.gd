@@ -131,7 +131,7 @@ func _server_tick(delta: float) -> void:
 		var off := e.position - position
 		if Vector2(off.x, off.y * 2.0).length() < 26.0 and not _hit_cd.has(e.get_instance_id()):
 			_hit_cd[e.get_instance_id()] = 0.6
-			e.take_damage(float(def()["atropelo"]) * clampf(spd / 200.0, 0.5, 1.5), self)
+			e.take_damage(float(def()["atropelo"]) * clampf(spd / 200.0, 0.5, 1.5), self, 1.0)
 			cond = maxf(0.0, cond - 1.5)
 
 

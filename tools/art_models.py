@@ -398,6 +398,13 @@ def edge_wall(name, d, open_=False):
         P.append(slab(0.06, t, WALL_H / 2, "wood", (-0.44, 0, WALL_H / 2)))
         P.append(slab(0.38, 0.015, 0.22, "glow_dim", (0, 0, 0.56)))
         P.append(slab(0.01, 0.02, 0.22, "dark", (0, 0, 0.56)))
+    elif name == "barricada":
+        # tábuas pregadas atravessadas (fica por fora da parede, um pouco à frente)
+        for i, (z, ang) in enumerate(((0.22, 6), (0.42, -5), (0.62, 4), (0.80, -7))):
+            q = slab(0.47, t * 0.6, 0.065, "wood", (0, 0.06, z), pattern=pat_planks(0.2, 0))
+            q2 = Part(q.shape, q.size, q.mat, q.pos, rot_y(ang) if d == 1 else rot_x(ang), pattern=q.pattern)
+            P.append(q2)
+            P.append(slab(0.015, t * 0.7, 0.015, "steel", (0.38 * (1 if i % 2 else -1), 0.07, z)))
     elif name in ("porta", "portao"):
         mat = "wood" if name == "porta" else "steel"
         P.append(slab(0.07, t + 0.01, WALL_H / 2, "slate", (0.43, 0, WALL_H / 2)))
