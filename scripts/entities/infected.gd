@@ -61,6 +61,7 @@ var _atk_anim := 0.0
 var _seen_atk := 0
 var _seen_hp := -1.0
 var _screamed := false
+var _groan_t := randf_range(2.0, 12.0)
 ## Barulho ouvido (vai investigar) e memória do último alvo visto.
 var _heard_pos := Vector2.ZERO
 var _heard_t := 0.0
@@ -142,6 +143,13 @@ func _physics_process(delta: float) -> void:
 	if atk_seq != _seen_atk:
 		_seen_atk = atk_seq
 		_atk_anim = 0.4
+		Sfx.play_at("infectado_ataque", position)
+	# gemido de vez em quando
+	_groan_t -= delta
+	if _groan_t <= 0.0:
+		_groan_t = randf_range(6.0, 16.0)
+		if phase != 3:
+			Sfx.play_at("infectado_gemido", position)
 	if hp < _seen_hp - 0.01:
 		_flash = 0.15
 	_seen_hp = hp

@@ -96,6 +96,7 @@ func _process(delta: float) -> void:
 	elif not Net.is_server():
 		position = position.lerp(net_pos, clampf(delta * 12.0, 0.0, 1.0))
 	var moved := position - before
+	Sfx.loop("motor_loop", self, driver != 0, clampf(0.5 + moved.length() / maxf(delta, 0.001) / 300.0, 0.5, 1.3))
 	if moved.length() > 0.3:
 		facing = GenArt.facing_of(moved)
 	if Net.is_server():

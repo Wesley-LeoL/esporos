@@ -222,6 +222,10 @@ func _apply_open() -> void:
 
 ## Luzes acendem quando têm energia e está escuro.
 func _refresh_power() -> void:
+	if kind == "gerador" and world != null:
+		Sfx.loop("gerador_loop", self, powered and fuel > 0.0)
+	elif kind == "purificador" and world != null:
+		Sfx.loop("purificador_loop", self, powered)
 	if _light != null and world != null:
 		var dk := world.darkness()
 		_light.enabled = powered and dk > 0.05

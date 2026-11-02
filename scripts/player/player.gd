@@ -37,6 +37,8 @@ var world: World
 var net_pos := Vector2.ZERO
 var shove_cd := 0.0
 var _env_t := 0.0
+var _snd_step := 0.0
+var _snd_atk := 0
 var _wake_cd := 0.0
 var _body_env := {}
 var facing: int = Facing.S
@@ -424,6 +426,14 @@ func _sheet() -> String:
 # ------------------------------------------------------------------ ações (dono -> servidor)
 ## Pede uma ação ao servidor. No anfitrião executa direto.
 func act(action: String, args: Array = []) -> void:
+	if is_local():
+		match action:
+			"reload":
+				Sfx.play("recarregar")
+			"take", "take_all":
+				Sfx.play("pegar_item")
+			"unlock":
+				Sfx.play("fechadura_tenta")
 	# ação com tempo fecha o inventário ou a janela aberta (o jogador vê a barra de progresso)
 	if is_local() and action in TIMED and Game.hud != null and data != null and _duration(action, args, self) > 0.0:
 		Game.hud.close_for_action()
@@ -477,6 +487,11 @@ func _run_act(action: String, args: Array) -> void:
 		return
 	match action:
 		"use_item":
+			var ui := data._resolve(args[0] if (args[0] is int or args[0] is String) else str(args[0]))
+			if not ui.is_empty():
+				var snd: String = {"comida": "comer", "bebida": "beber", "cantil": "beber", "med": "curativo"}.get(String(Items.def(ui["id"]).get("tipo", "")), "")
+				if snd != "":
+					world.sfx_at(snd, position if is_local() else net_pos)
 			data.use_item(args[0] if (args[0] is int or args[0] is String) else str(args[0]))
 		"move":
 			data.move_item(int(args[0]), str(args[1]))
@@ -497,6 +512,7 @@ func _run_act(action: String, args: Array) -> void:
 		"treat":
 			var pt := _patient_of(action, args)
 			if pt != null:
+				world.sfx_at("curativo", position if is_local() else net_pos)
 				pt.data.treat(str(args[0]), str(args[1]), data if pt != self else null)
 				pt._sync_t = 0.0
 		"craft":
@@ -514,6 +530,8 @@ func _run_act(action: String, args: Array) -> void:
 				var sn := _station_fuel_node(rid)
 				if done and sn != null:
 					sn.use_supply(float(Structure.supply_of(sn.kind)["uso"]))
+				if done:
+					world.sfx_at("fabricar", position if is_local() else net_pos)
 		"install":
 			var pi := _patient_of(action, args)
 			if pi != null:
@@ -827,6 +845,25 @@ func _server_attack(_dir_index: int, aim_angle: float) -> void:
 	if hit:
 		data.on_melee_hit()
 		world.make_noise(pos, 150.0)
+		world.sfx_at("golpe_acerto", pos)
+
+
+## Sons do personagem (todos os peers tocam para todos os personagens que veem): passos e
+## o golpe no ar.
+func _sounds(delta: float) -> void:
+	if not alive or world == null:
+		return
+	if attack_seq != _snd_atk:
+		_snd_atk = attack_seq
+		if data == null or data.firearm().is_empty():
+			Sfx.play_at("golpe_ar", position)
+	if moving and not sneaking and world.vehicle_of(peer) == null:
+		_snd_step -= delta
+		if _snd_step <= 0.0:
+			_snd_step = 0.28 if sprinting else 0.42
+			Sfx.play_at("passo", position)
+	else:
+		_snd_step = 0.0
 
 
 ## Infectado ou saqueador perto demais para dormir em paz.
@@ -867,6 +904,7 @@ func _server_fire(gun: Dictionary, aim_angle: float) -> void:
 	var def := Items.def(gun["id"])
 	_fire_cd = float(def.get("cadencia", 0.4))
 	if float(gun.get("mun", 0.0)) < 1.0:
+		world.sfx_at("sem_municao", position if is_local() else net_pos)
 		Game.tell(peer, "Clique! Sem munição. [R] recarrega.")
 		return
 	var dur := float(gun.get("dur", 100.0))
@@ -905,6 +943,7 @@ func _server_fire(gun: Dictionary, aim_angle: float) -> void:
 			hits += 1
 	data.add_xp("pontaria", 0.6 + 2.0 * float(hits))
 	world.shot_fx.rpc(muzzle, ends)
+	world.sfx_at("tiro_espingarda" if int(def.get("chumbos", 1)) > 1 else "tiro_pistola", pos)
 	world.make_noise(pos, float(def["ruido"]) * (1.0 - 0.04 * aim_lv))
 	if float(gun["dur"]) <= 0.0:
 		Game.tell(peer, "Sua arma quebrou: %s!" % DB.item_name(gun["id"]))
@@ -955,6 +994,7 @@ func server_hurt(limb: String, amount: float, pathogen_gain: float) -> void:
 	if data == null or not alive or data.god:
 		return
 	data.sleeping = false
+	world.sfx_at("dor", position if is_local() else net_pos)
 	data.damage_limb(limb, amount)
 	data.pathogen = minf(100.0, data.pathogen + pathogen_gain)
 	hurt_seq += 1
@@ -1052,6 +1092,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _process(_delta: float) -> void:
+	_sounds(_delta)
 	if lamp != null and world != null:
 		var dk := world.darkness()
 		lamp.enabled = alive and (look & 8) != 0 and dk > 0.05

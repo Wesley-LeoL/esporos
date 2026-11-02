@@ -1125,6 +1125,7 @@ func try_unlock(p: Player, key: String) -> void:
 	var d := p.data
 	if not d.key_for(lock).is_empty():
 		_lock_open.rpc(lock)
+		sfx_at("fechadura_abre", node.position)
 		Game.tell(p.peer, "Você destrancou com a chave.")
 		return
 	var tool := ""
@@ -1139,6 +1140,7 @@ func try_unlock(p: Player, key: String) -> void:
 	var chance := float(base[lv - 1]) + 0.04 * float(d.level("mecanica"))
 	if rng.randf() < chance:
 		_lock_open.rpc(lock)
+		sfx_at("fechadura_abre", node.position)
 		d.add_xp("mecanica", 6.0)
 		Game.tell(p.peer, "A fechadura abriu!")
 		return
@@ -1750,6 +1752,7 @@ func try_place(kind: String, c: Vector2i, p: Player, d := -1) -> bool:
 		return false
 	pay_near(p, def["custo"])
 	make_noise(ground.map_to_local(c), 240.0)
+	sfx_at("construir", ground.map_to_local(c))
 	var extra := {}
 	if kind == "eolico":
 		extra = {"mods": 1, "aberto": _openness(c)}
@@ -1970,6 +1973,29 @@ func _spore_fx(pos: Vector2) -> void:
 	entities.add_child(fx)
 
 
+var _thunder_t := 12.0
+var _audio_t := 0.0
+
+
+## Sons de ambiente locais: chuva e vento em laço (abafados dentro de prédio) e trovões na
+## tempestade.
+func _audio_step(delta: float) -> void:
+	_audio_t -= delta
+	_thunder_t -= delta
+	var storm := str(weather.get("tipo", "")) == "tempestade"
+	if storm and _thunder_t <= 0.0:
+		_thunder_t = rng.randf_range(8.0, 22.0)
+		Sfx.play("trovao")
+	if _audio_t > 0.0:
+		return
+	_audio_t = 0.5
+	var pl := local_player()
+	var inside := pl != null and house_at(pl.position) >= 0
+	var k := 0.35 if inside else 1.0
+	Sfx.loop("chuva", self, is_raining() and floor_house_at(pl.position if pl != null else Vector2.ZERO) < 0, k * (1.4 if storm else 1.0))
+	Sfx.loop("vento", self, storm or float(weather.get("vento", 0.0)) > 0.7, k)
+
+
 ## Som num ponto do mundo para todos os peers (o servidor decide; cada um toca o seu).
 func sfx_at(name: String, pos: Vector2) -> void:
 	if Net.is_server() and is_inside_tree():
@@ -2113,6 +2139,7 @@ func spawn_raid(v: VillageData) -> void:
 		var pos := ground.map_to_local(c)
 		spawn_raider(pos, {"raid": v.id, "home": [pos.x, pos.y]})
 	_tell_near(v, "Saqueadores estão atacando a vila %s!" % v.nome)
+	sfx_at("sirene", ground.map_to_local(v.cell))
 
 
 ## Servidor: os saqueadores chegaram ao centro e levaram parte do estoque.
@@ -2456,6 +2483,7 @@ func spawn_horde(v: VillageData, extra := 0) -> void:
 		var hk := "brutamonte" if rng.randf() < 0.12 + 0.03 * float(v.wall_tier) else Infected.roll_kind(rng, 0.6)
 		spawn_infected(ground.map_to_local(c), rng.randf() < 0.1, {"siege": v.id, "kind": hk})
 	_tell_near(v, "Uma horda de %d infectados está atacando a vila %s!" % [n, v.nome])
+	sfx_at("sirene", ground.map_to_local(v.cell))
 
 
 ## Torres da vila só funcionam com cerca de nível 2 ou mais (e enquanto a vila resiste).
@@ -3163,6 +3191,7 @@ func vehicle_action(p: Player, key: String, op: String) -> void:
 
 # ======================================================================= vida e morte
 func _process(delta: float) -> void:
+	_audio_step(delta)
 	_chunk_t -= delta
 	if _chunk_t <= 0.0:
 		_chunk_t = 0.25

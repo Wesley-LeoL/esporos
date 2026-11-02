@@ -776,6 +776,7 @@ func _build_vehicle_button() -> void:
 
 ## Abre a janela de saque de um recipiente (aba Inventário em duas colunas).
 func open_loot(node: Node2D) -> void:
+	Sfx.play("abrir_gaveta")
 	open_menu(0)
 	if menu_root.visible:
 		loot_node = node
@@ -1566,6 +1567,7 @@ func _btn(parent: Control, text: String, cb: Callable, enabled: bool = true) -> 
 	b.disabled = not enabled
 	b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	b.pressed.connect(func() -> void: Sfx.play("ui_clique"))
 	b.pressed.connect(cb)
 	parent.add_child(b)
 	return b
