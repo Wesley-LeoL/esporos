@@ -57,10 +57,17 @@ func is_window() -> bool:
 	return kind_is_window(kind)
 
 
+## Parede de um andar de cima (prédio alto)?
+func upper_floor() -> bool:
+	return house_id >= 0 and world != null and world.houses.has(house_id) and world.houses[house_id].has("tower")
+
+
 ## Dá para passar? Porta aberta, janela quebrada ou vão, se não houver barricada.
 func passable() -> bool:
 	if barricade > 0.0:
 		return false
+	if upper_floor():
+		return open and is_door()  # janela de andar alto: só pulando ([E])
 	return (open and is_door()) or kind_is_broken_window(kind) or kind == "vao"
 
 
@@ -137,6 +144,8 @@ func prompt() -> String:
 		return "[E] Tirar barricada (%d%%)" % int(barricade / float(DB.BUILDS["barricada"]["vida"]) * 100.0)
 	if map and is_window() and not kind_is_broken_window(kind):
 		return "[E] Quebrar a janela (barulho)"
+	if map and kind_is_broken_window(kind) and upper_floor():
+		return "[E] Pular da janela (%d m)" % int(3.5 * float(world.houses[house_id]["andar"]))
 	if map and kind_is_broken_window(kind):
 		return "Janela quebrada: dá para passar · barricada no modo construção"
 	if fence_vid >= 0 and not is_door():
@@ -160,6 +169,9 @@ func interact(_p: Player) -> void:
 		return
 	if map and is_window() and not kind_is_broken_window(kind):
 		world.break_window(_p, key())
+		return
+	if map and kind_is_broken_window(kind) and upper_floor():
+		world.jump_window(_p, key())
 		return
 	if fence_vid >= 0 and not is_door():
 		world.repair_fence(_p, key())

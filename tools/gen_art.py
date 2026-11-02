@@ -252,6 +252,13 @@ def gen_town():
             Image.fromarray(img).save(os.path.join(OUT, "town", "roofs", key + ".png"), optimize=True)
             roofs[key] = (img.shape[1], img.shape[0], bx, by)
         print("telhados:", st)
+    for n in gtown.TOWER_FLOORS:
+        for (w, d) in gtown.TOWER_SIZES:
+            img, (bx, by) = gtown.render_tower(n, w, d)
+            key = "torre%d_%dx%d" % (n, w, d)
+            Image.fromarray(img).save(os.path.join(OUT, "town", "roofs", key + ".png"), optimize=True)
+            roofs[key] = (img.shape[1], img.shape[0], bx, by)
+    print("prédios altos:", len(gtown.TOWER_SIZES) * len(gtown.TOWER_FLOORS))
     L = ["# GERADO por tools/gen_art.py (tools/gen_city.py, tools/gen_town.py) - não edite à mão.",
          "class_name CityCatalog",
          "extends RefCounted",

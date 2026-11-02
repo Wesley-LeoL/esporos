@@ -62,7 +62,20 @@ func _ready() -> void:
 	for k in w1.map_walls:
 		if String(w1.map_walls[k]["kind"]).ends_with("_porta") and int(w1.map_walls[k]["h"]) >= 0:
 			doors[int(w1.map_walls[k]["h"])] = true
-	check(w1.houses.size() > 60 and doors.size() == w1.houses.size(), "%d prédios exploráveis, todos com porta" % w1.houses.size())
+	var ground_houses := 0
+	var towers := 0
+	var floors_ok := true
+	for hid3 in w1.houses:
+		if w1.houses[hid3].has("tower"):
+			continue
+		ground_houses += 1
+		if int(w1.houses[hid3].get("andares", 0)) > 1:
+			towers += 1
+			if (w1.houses[hid3].get("floors", []) as Array).size() != int(w1.houses[hid3]["andares"]) - 1:
+				floors_ok = false
+	check(w1.houses.size() > 60 and doors.size() == ground_houses, "%d prédios exploráveis no chão, todos com porta" % ground_houses)
+	check(towers >= 4 and floors_ok, "%d prédios de 2-3 andares, com todos os andares" % towers)
+	check(w1.stairs.size() >= towers * 2, "%d escadas" % w1.stairs.size())
 	var fenced := 0
 	for v in w1.villages:
 		if v.infested or w1.in_safe_zone(w1.ground.map_to_local(v.cell)):

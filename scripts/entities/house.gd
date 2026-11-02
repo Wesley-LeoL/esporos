@@ -26,6 +26,9 @@ var _scan_t := 0.0
 var _shade := -1.0
 var _inside_nodes: Array = []
 var _windows: Array[Vector2] = []
+## Prédio alto: luzes da fachada à noite e quanto ele cobre para trás.
+var _lights: Array[PointLight2D] = []
+var _back := 2
 
 
 func _ready() -> void:
@@ -49,6 +52,22 @@ func _ready() -> void:
 	for k: Vector3i in world.houses[id].get("windows", []):
 		_windows.append(world.edge_pos(k))
 	_t = randf() * 0.1
+	if roof.begins_with("torre"):
+		var n := int(world.houses[id].get("andares", 2))
+		_back = 2 + (n - 1) * 3
+		var cols := [Color(0.35, 0.9, 1.0), Color(1.0, 0.4, 0.9), Color(1.0, 0.75, 0.4)]
+		var w := float(rect.size.x)
+		var d := float(rect.size.y)
+		var spots := [Vector2(0, -40.0 * n), Vector2(World.HALF_W * 0.25 * w, -20.0 * n), Vector2(-World.HALF_W * 0.25 * d, -20.0 * n)]
+		for i in spots.size():
+			var l := PointLight2D.new()
+			l.texture = World.light_texture()
+			l.color = cols[(id + i) % cols.size()]
+			l.texture_scale = 2.2
+			l.position = spots[i]
+			l.enabled = false
+			add_child(l)
+			_lights.append(l)
 
 
 func _exit_tree() -> void:
@@ -75,9 +94,16 @@ func _process(delta: float) -> void:
 				if Vector2(off.x, off.y * 2.0).length() < 62.0:
 					state = "espiando"
 					break
-			if state == "fora" and Rect2i(rect.position - Vector2i(2, 2), rect.size + Vector2i(2, 2)).has_point(c):
+			if state == "fora" and Rect2i(rect.position - Vector2i(_back, _back), rect.size + Vector2i(_back, _back)).has_point(c):
 				state = "atras"
 	world.house_open[id] = state == "dentro"
+	if not _lights.is_empty():
+		var dk := world.darkness()
+		var dead := String(world.houses[id]["estado"]) != "viva"
+		for i in _lights.size():
+			var on := dk > 0.05 and (not dead or (i == 0 and randf() > 0.15))
+			_lights[i].enabled = on
+			_lights[i].energy = (0.9 if not dead else 0.45) * dk
 	var roof_a := 1.0
 	var shade := SHADE_DARK
 	match state:

@@ -916,7 +916,7 @@ func _process(delta: float) -> void:
 	air_label.text = q[0]
 	air_label.add_theme_color_override("font_color", q[1])
 	air_val.text = "%.2f" % spore
-	var edge_tiles := World.RADIUS - Game.world.tile_pos(p.position).length()
+	var edge_tiles := World.RADIUS - Game.world.tile_pos(Game.world.anchor_pos(p.position)).length()
 	edge_val.text = "%d TILES" % int(edge_tiles)
 	edge_val.add_theme_color_override("font_color", UITheme.DANGER if edge_tiles < 12.0 else UITheme.TEXT)
 	var w := Game.world

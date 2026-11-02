@@ -14,7 +14,7 @@ const FACING_NAMES := ["L", "SE", "S", "SO", "O", "NO", "N", "NE"]
 const SPEED := 100.0
 const ISO_Y_SCALE := 0.5
 const ACTIONS := ["hotbar", "use_item", "treat", "craft", "install", "maintain", "interact", "build", "demolish",
-	"attack", "save", "move", "drop", "repair", "refuel_station", "unlock", "shove", "sleep", "wake", "unwear", "take", "take_all", "store", "remove_implant", "reload", "cancel", "examine", "deliver", "donate", "buy", "vehicle", "reorder", "sort_inv",
+	"attack", "save", "move", "drop", "repair", "refuel_station", "unlock", "shove", "sleep", "wake", "stairs", "unwear", "take", "take_all", "store", "remove_implant", "reload", "cancel", "examine", "deliver", "donate", "buy", "vehicle", "reorder", "sort_inv",
 	"loot_order", "sort_loot"]
 ## Ações que levam tempo (barra de progresso; mover-se ou levar dano interrompe).
 const TIMED := ["treat", "install", "remove_implant", "maintain", "craft", "reload", "repair", "use_item", "vehicle", "unlock"]
@@ -558,6 +558,8 @@ func _run_act(action: String, args: Array) -> void:
 				data.sleeping = true
 				data.sleep_bed = 1.0
 				Game.tell(peer, "Você deitou para dormir. Mexa-se para acordar.")
+		"stairs":
+			world.use_stairs(self, Vector2i(int(args[0]), int(args[1])))
 		"wake":
 			if data.sleeping:
 				data.sleeping = false
@@ -1009,6 +1011,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("interact") and nearby != null and is_instance_valid(nearby):
 		if nearby.is_in_group("beds"):
 			act("sleep")
+		elif nearby is Stair:
+			act("stairs", [(nearby as Stair).cell.x, (nearby as Stair).cell.y])
 		elif world.is_locked(nearby):
 			act("unlock", [world.key_of(nearby)])
 		elif nearby is Vehicle and Game.hud != null:

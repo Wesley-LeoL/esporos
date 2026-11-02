@@ -243,8 +243,59 @@ def roof_model(style, w, d):
     return P
 
 
-def render_roof(style, w, d, margin=12):
-    parts = roof_model(style, w, d)
+# prédios altos (2 ou 3 andares): o térreo são as paredes de borda; o bloco dos andares de
+# cima, as janelas acesas, o neon e a laje vêm numa imagem só, como um telhado
+FLOOR_H = 1.2
+TOWER_SIZES = sorted({(w, d) for w in (5, 6, 7) for d in (5, 6, 7)} - {(7, 7)})
+TOWER_FLOORS = (2, 3)
+
+
+def tower_model(n, w, d):
+    H = WALL_H
+    up = (n - 1) * FLOOR_H
+    cx, cy = -w / 2.0, -d / 2.0
+    seed = w * 7 + d * 3 + n
+    body = "slate" if seed % 2 else "steel"
+    P = [Part("box", (w / 2, d / 2, up / 2), body, (cx, cy, H + up / 2),
+              pattern=combine(pat_seams(FLOOR_H, (0, 0, 1)), pat_chips(seed, 0.03, 0.12)))]
+    # faixa entre andares
+    for f in range(n):
+        z = H + f * FLOOR_H
+        P.append(Part("box", (w / 2 + 0.03, d / 2 + 0.03, 0.04), "grey", (cx, cy, z)))
+    lit = ["glow_cyan", "glow_amber", "glow_dim", "dark", "glow_amber", "glow_magenta"]
+    for f in range(n - 1):
+        z = H + f * FLOOR_H + 0.6
+        for i in range(w):
+            m = lit[int(_h(seed, f, i, 1) * len(lit))]
+            P.append(Part("box", (0.28, 0.02, 0.24), m, (-i - 0.5, 0.012, z)))
+        for j in range(d):
+            m = lit[int(_h(seed, f, j, 2) * len(lit))]
+            P.append(Part("box", (0.02, 0.28, 0.24), m, (0.012, -j - 0.5, z)))
+    # neon: faixa vertical na quina e letreiro na fachada
+    P.append(Part("box", (0.03, 0.03, up * 0.42), "glow_magenta" if seed % 3 else "glow_cyan", (0.05, -0.08, H + up / 2)))
+    sw = min(w, 4) * 0.4
+    P.append(Part("box", (sw, 0.04, 0.12), "dark", (cx, 0.05, H + up - 0.2)))
+    P.append(Part("box", (sw * 0.85, 0.045, 0.06), "glow_cyan" if seed % 3 else "glow_magenta", (cx, 0.055, H + up - 0.2)))
+    # laje no topo
+    top = H + up
+    P.append(Part("box", (w / 2 + 0.05, d / 2 + 0.05, 0.05), "slate", (cx, cy, top + 0.05), pattern=pat_chips(seed + 1, 0.04, 0.15)))
+    e = 0.05
+    for (px, py, hx, hy) in ((cx, -d - 0.05 + e, w / 2 + 0.05, e), (cx, 0.05 - e, w / 2 + 0.05, e),
+                             (-w - 0.05 + e, cy, e, d / 2 + 0.05), (0.05 - e, cy, e, d / 2 + 0.05)):
+        P.append(Part("box", (hx, hy, 0.06), "grey", (px, py, top + 0.16)))
+    P.append(Part("cyl", (0.3, 0.25), "rust", (-w * 0.7, -d * 0.7, top + 0.35)))
+    P.append(Part("box", (0.25, 0.2, 0.14), "bone", (-w * 0.35, -d * 0.4, top + 0.24), pattern=pat_seams(0.1, (0, 1, 0))))
+    P.append(Part("cyl", (0.025, 0.5), "grey", (-w * 0.25, -d * 0.75, top + 0.6)))
+    P.append(Part("box", (0.03, 0.03, 0.03), "glow_red", (-w * 0.25, -d * 0.75, top + 1.12)))
+    return P
+
+
+def render_tower(n, w, d, margin=12):
+    return render_roof(None, w, d, margin, tower_model(n, w, d))
+
+
+def render_roof(style, w, d, margin=12, parts=None):
+    parts = parts if parts is not None else roof_model(style, w, d)
     ztop = max(p.pos[2] + float(np.max(np.abs(p.size))) for p in parts)
     Wc = int((w + d) * 40 + 2 * margin)
     Hc = int((w + d) * 20 + ztop * 49 + margin + 30)

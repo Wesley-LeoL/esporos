@@ -543,6 +543,8 @@ func debug_command(cmd: String) -> void:
 				if arg == "quebrar":
 					p.teleport(world.edge_pos(bkw) + Vector2(0, 14))
 					world.break_window(p, bkw)
+				elif arg == "pular":
+					world.jump_window(p, bkw)
 				else:
 					p.act("build", ["barricada", bkw.x, bkw.y, bkw.z])
 				print("[win] %s %s" % [bkw, world.map_walls[bkw]])
@@ -564,6 +566,26 @@ func debug_command(cmd: String) -> void:
 				if bv5 == null or Vector2(v5.cell).distance_to(pc5) < Vector2(bv5.cell).distance_to(pc5):
 					bv5 = v5
 			world.spawn_raid(bv5)
+		"tptower":
+			# tptower:n[,dentro] — vai até o prédio alto n (testes)
+			var tl: Array = []
+			for hid6 in world.houses:
+				if int(world.houses[hid6].get("andares", 0)) > 1:
+					tl.append(hid6)
+			if not tl.is_empty():
+				var th: Dictionary = world.houses[tl[int(a[0]) % tl.size()]]
+				var tr6: Rect2i = th["rect"]
+				var tc := tr6.get_center() if a.size() > 1 else Vector2i(tr6.end.x + 2, tr6.end.y + 2)
+				p.teleport(world.ground.map_to_local(tc))
+		"usestair":
+			var bs6: Stair = null
+			for n in get_tree().get_nodes_in_group("stairs"):
+				if bs6 == null or (n as Node2D).position.distance_to(p.position) < bs6.position.distance_to(p.position):
+					bs6 = n as Stair
+			if bs6 != null:
+				p.teleport(bs6.position + Vector2(0, 10))
+				p.act("stairs", [bs6.cell.x, bs6.cell.y])
+				print("[stair] de %s para %s (%s) chao=%s casa=%s" % [bs6.cell, bs6.to, bs6.label, world.ground_cells.get(bs6.to, -1), world.house_cells.get(bs6.to, -1)])
 		"interact_near":
 			p._update_nearby()
 			if p.nearby != null:

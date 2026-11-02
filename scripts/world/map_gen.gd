@@ -31,10 +31,18 @@ const TYPES := {
 		["paletes", "tambores", "pneus", "gerador_velho", "arquivo"], ["tecnico", "tecnico", "comum"]],
 	"celeiro": [4, 5, 3, 4, ["madeira"], World.T.PISO_MADEIRA, ["telha", "telha_cinza"],
 		["feno", "feno", "paletes", "tambores"], ["comum"]],
+	# prédio de 2 ou 3 andares (o térreo é comércio; os andares de cima, apartamentos)
+	"predio": [5, 7, 5, 6, ["concreto", "chapa"], World.T.AZULEJO, ["torre"],
+		["balcao", "prateleira", "prateleira", "armario", "geladeira", "arquivo"], ["comum", "tecnico"]],
+	"andar": [5, 7, 5, 7, ["reboco", "concreto"], World.T.CARPETE, [""],
+		["cama", "sofa", "mesa", "cadeira", "armario", "geladeira", "fogao", "pia", "estante", "tv"], ["comum", "medico"]],
 }
+## Andares de cima ficam numa faixa reservada fora do mapa (a escada leva até eles).
+const ZONE := Vector2i(-160, 420)
+const ZONE_STEP := 12
 const TYPE_NAMES := {"casa": "casa", "loja": "loja", "mercado": "mercado", "bar": "bar", "clinica": "clínica",
 	"oficina": "oficina", "celeiro": "celeiro"}
-const TOWN_MIX := {"casa": 40, "loja": 18, "mercado": 8, "bar": 10, "clinica": 10, "oficina": 14}
+const TOWN_MIX := {"casa": 36, "loja": 16, "mercado": 8, "bar": 9, "clinica": 9, "oficina": 12, "predio": 14}
 const HAMLET_MIX := {"casa": 70, "celeiro": 18, "oficina": 12}
 
 var w: World
@@ -44,6 +52,7 @@ var _dead_name := 0
 var _house_conts: Array = []
 ## Prédios trancados à espera da chave: [id, centro, rótulo].
 var _locked_houses: Array = []
+var _towers := 0
 
 
 func _init(world: World) -> void:
@@ -439,7 +448,15 @@ func _house(rect: Rect2i, tipo: String, estado: String, door_side: int, vid := -
 	var mat: String = mats[rng.randi() % mats.size()]
 	var roofs: Array = spec[6]
 	var roof := "%s_%dx%d" % [roofs[rng.randi() % roofs.size()], rect.size.x, rect.size.y]
-	if estado == "esporos":
+	var floors := 0
+	if tipo == "predio":
+		floors = 2 if rng.randf() < 0.6 else 3
+		roof = "torre%d_%dx%d" % [floors, rect.size.x, rect.size.y]
+		if not CityCatalog.ROOFS.has(roof):
+			return false
+	elif tipo == "andar":
+		roof = ""
+	elif estado == "esporos":
 		roof = "" if rng.randf() < 0.35 else "esporos_%dx%d" % [rect.size.x, rect.size.y]
 	elif estado == "abandonada" and rng.randf() < 0.3:
 		roof = ""
@@ -468,7 +485,7 @@ func _house(rect: Rect2i, tipo: String, estado: String, door_side: int, vid := -
 			var mid := n / 2
 			if side == door_side and i == mid:
 				variant = "porta"
-			elif side == (door_side + 2) % 4 and big and i == mid and rng.randf() < 0.5:
+			elif door_side >= 0 and side == (door_side + 2) % 4 and big and i == mid and rng.randf() < 0.5 and tipo != "predio":
 				variant = "porta"
 			elif shop and side == door_side:
 				variant = "vitrine"
@@ -482,7 +499,7 @@ func _house(rect: Rect2i, tipo: String, estado: String, door_side: int, vid := -
 						variant = "janela_q"
 					elif variant == "parede" and rng.randf() < 0.14:
 						variant = "quebrada"
-					if variant != "porta" and rng.randf() < 0.05:
+					if variant != "porta" and rng.randf() < 0.05 and tipo != "andar":
 						w.houses[id]["windows"].append(k)
 						continue
 				"esporos":
@@ -588,7 +605,54 @@ func _house(rect: Rect2i, tipo: String, estado: String, door_side: int, vid := -
 			w.container_data[bid]["lock"] = 2
 		conts.append([bid, "caixa"])
 	_locks(id, tipo, estado, vid, conts)
+	if floors > 0:
+		_tower_floors(id, rect, floors, estado, vid)
 	return true
+
+
+## Andares de cima de um prédio: salas na faixa reservada, ligadas por escadas.
+func _tower_floors(id: int, rect: Rect2i, floors: int, estado: String, vid: int) -> void:
+	var ti := _towers
+	_towers += 1
+	w.houses[id]["floors"] = []
+	w.houses[id]["andares"] = floors
+	var below_id := id
+	var below_rect := rect
+	for f in range(1, floors):
+		var zr := Rect2i(ZONE + Vector2i((ti % 24) * ZONE_STEP, (ti / 24) * ZONE_STEP * 3 + (f - 1) * ZONE_STEP), rect.size)
+		var fid := w.houses.size()
+		if not _house(zr, "andar", estado, -1, vid):
+			return
+		w.houses[fid]["tower"] = id
+		w.houses[fid]["andar"] = f
+		(w.houses[id]["floors"] as Array).append(fid)
+		# escada: célula livre no andar de baixo e a mesma posição relativa (ou perto) em cima
+		var a := _free_inner(below_rect)
+		var b := _free_inner(zr, a - below_rect.position)
+		if a.x > -9999 and b.x > -9999:
+			_stair(a, b, "Subir ao %dº andar" % (f + 1))
+			_stair(b, a, "Descer ao térreo" if f == 1 else "Descer ao %dº andar" % f)
+		below_id = fid
+		below_rect = zr
+
+
+func _free_inner(r: Rect2i, prefer := Vector2i(-1, -1)) -> Vector2i:
+	if prefer.x >= 0:
+		var q := r.position + prefer
+		if r.has_point(q) and not w.occupied.has(q):
+			return q
+	for x in range(r.position.x + 1, r.end.x - 1):
+		for y in range(r.position.y + 1, r.end.y - 1):
+			var q2 := Vector2i(x, y)
+			if not w.occupied.has(q2):
+				return q2
+	return Vector2i(-99999, -99999)
+
+
+func _stair(c: Vector2i, to: Vector2i, label: String) -> void:
+	w.stairs[c] = {"to": to, "txt": label}
+	w.occupied[c] = true
+	w._plan_add(c, {"t": "st", "cell": c})
 
 
 ## Fechaduras: a chave de cada móvel trancado fica em outro móvel do mesmo prédio; a da porta
@@ -638,7 +702,7 @@ func _raider_camps() -> void:
 	for id in w.houses:
 		var hd: Dictionary = w.houses[id]
 		var r: Rect2i = hd["rect"]
-		if hd["estado"] != "abandonada" or r.size.x * r.size.y < 12 or int(hd.get("lock", 0)) > 0:
+		if hd["estado"] != "abandonada" or r.size.x * r.size.y < 12 or int(hd.get("lock", 0)) > 0 or hd.has("tower"):
 			continue
 		var far := true
 		for pl in w.places:

@@ -209,7 +209,8 @@ func _gtile(t: int, c: Vector2i) -> Vector2i:
 func _terrain(c: Vector2i) -> int:
 	var d := Vector2(c).length()
 	if d > RADIUS + 5.0:
-		return -1
+		# andares de cima (faixa reservada): só o piso das salas
+		return int(ground_cells.get(c, -1))
 	if road_cells.has(c):
 		return int(road_cells[c])
 	var t: int
@@ -355,7 +356,7 @@ func _free_structure_node(s: Structure) -> void:
 
 func _free_cell(c: Vector2i) -> bool:
 	return not occupied.has(c) and not road_cells.has(c) and not field_cells.has(c) and not house_cells.has(c) \
-		and Vector2(c).length() < RADIUS - 3.0
+		and (Vector2(c).length() < RADIUS - 3.0 or Vector2(c).length() > RADIUS + 60.0)
 
 
 ## Nó de uma construção (dados em 'built').
@@ -528,7 +529,8 @@ func update_chunks(limit := 3) -> void:
 		for dx in range(-LOAD_R, LOAD_R + 1):
 			for dy in range(-LOAD_R, LOAD_R + 1):
 				var ch := cc + Vector2i(dx, dy)
-				if absi(ch.x) > max_ch or absi(ch.y) > max_ch or loaded.has(ch) or ch in want:
+				var zone := ch.y * CHUNK >= 380  # faixa dos andares de cima
+				if ((absi(ch.x) > max_ch or absi(ch.y) > max_ch) and not zone) or loaded.has(ch) or ch in want:
 					continue
 				want.append(ch)
 	# os mais próximos primeiro
@@ -584,6 +586,8 @@ func _load_chunk(ch: Vector2i) -> void:
 				nodes.append(_make_prop(e))
 			"c":
 				nodes.append(_make_container(int(e["id"])))
+			"st":
+				nodes.append(_make_stair(e["cell"]))
 	# arte de chão: calçadas antes das estradas, depois em ordem de profundidade
 	art.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		if a["layer"] != b["layer"]:
@@ -661,6 +665,7 @@ func edge_ratio(world_pos: Vector2) -> float:
 
 
 func spore_at(world_pos: Vector2) -> float:
+	world_pos = anchor_pos(world_pos)
 	var tp := tile_pos(world_pos)
 	var s := 0.08 + 1.4 * smoothstep(RADIUS * 0.55, RADIUS, tp.length())
 	# a chuva lava o ar; a névoa de esporos piora tudo
@@ -787,7 +792,8 @@ func random_spawn_house() -> int:
 		var id: int = ids[Game.rng.randi() % ids.size()]
 		var hd: Dictionary = houses[id]
 		var r: Rect2i = hd["rect"]
-		if hd["estado"] == "esporos" or spore_level_cell(r.get_center()) > 0.3 or r.size.x * r.size.y < 9 or int(hd.get("lock", 0)) > 0:
+		if hd["estado"] == "esporos" or spore_level_cell(r.get_center()) > 0.3 or r.size.x * r.size.y < 9 or int(hd.get("lock", 0)) > 0 \
+				or hd.has("tower"):
 			continue
 		var near_dead := false
 		for dz in dead_zones:
@@ -979,6 +985,94 @@ func _spawn_entity(d: Dictionary) -> Node:
 
 
 ## Chave estável de um objeto interativo (igual em todos os peers).
+# ======================================================================= andares
+## Escadas: célula -> {"to": célula de destino, "txt": rótulo}.
+var stairs := {}
+var _floors_visited := {}
+
+
+## Prédio de andar (faixa reservada) onde está a posição; -1 = não está num andar de cima.
+func floor_house_at(pos: Vector2) -> int:
+	var t := tile_pos(pos)
+	if t.length() < RADIUS + 6.0:
+		return -1
+	var h := int(house_cells.get(Vector2i(floori(t.x), floori(t.y)), -1))
+	return h if h >= 0 and houses[h].has("tower") else -1
+
+
+## Ponto do mapa que "representa" a posição: nos andares de cima, o prédio lá embaixo
+## (para esporos, borda e clima).
+func anchor_pos(pos: Vector2) -> Vector2:
+	var t := tile_pos(pos)
+	if t.length() < RADIUS + 6.0:
+		return pos
+	var h := floor_house_at(pos)
+	if h < 0:
+		var bestd := 1e9
+		for hid in houses:
+			if houses[hid].has("tower"):
+				var dd := Vector2(houses[hid]["rect"].get_center()).distance_to(t)
+				if dd < bestd:
+					bestd = dd
+					h = hid
+		if h < 0:
+			return pos
+	return ground.map_to_local(houses[int(houses[h]["tower"])]["rect"].get_center())
+
+
+func _make_stair(c: Vector2i) -> Stair:
+	var s := Stair.new()
+	s.cell = c
+	s.to = stairs[c]["to"]
+	s.label = stairs[c]["txt"]
+	s.position = ground.map_to_local(c)
+	entities.add_child(s)
+	return s
+
+
+## Servidor: sobe ou desce a escada (na primeira visita a um andar abandonado, aparecem
+## infectados lá).
+func use_stairs(p: Player, c: Vector2i) -> void:
+	if not stairs.has(c):
+		return
+	var at := ground.map_to_local(c)
+	var pp := p.position if p.is_local() else p.net_pos
+	if Vector2(at.x - pp.x, (at.y - pp.y) * 2.0).length() > 80.0:
+		return
+	var to: Vector2i = stairs[c]["to"]
+	var dest := ground.map_to_local(to) + Vector2(0, 16)
+	p.teleport(dest)
+	sfx_at("escada", at)
+	var fh := int(house_cells.get(to, -1))
+	if fh >= 0 and houses[fh].has("tower") and not _floors_visited.has(fh):
+		_floors_visited[fh] = true
+		if houses[fh]["estado"] != "viva":
+			var r: Rect2i = houses[fh]["rect"]
+			for i in rng.randi_range(1, 3):
+				var q := r.position + Vector2i(rng.randi_range(0, r.size.x - 1), rng.randi_range(0, r.size.y - 1))
+				if q.distance_to(to) > 2.5 and not occupied.has(q):
+					spawn_infected(ground.map_to_local(q), false, {"kind": Infected.roll_kind(rng, 0.4)})
+
+
+## Servidor: pula da janela quebrada de um andar de cima (cai do lado de fora do prédio).
+func jump_window(p: Player, k: Vector3i) -> void:
+	var e: Dictionary = map_walls.get(k, {})
+	var fh := int(e.get("h", -1))
+	if fh < 0 or not houses[fh].has("tower") or float(e.get("bar", 0.0)) > 0.0:
+		return
+	var tower: Dictionary = houses[int(houses[fh]["tower"])]
+	var zr: Rect2i = houses[fh]["rect"]
+	var tr: Rect2i = tower["rect"]
+	var gc := Vector2i(k.x, k.y) - zr.position + tr.position
+	var other := gc + (Vector2i(1, 0) if k.z == 0 else Vector2i(0, 1))
+	var land := other if tr.has_point(gc) else gc
+	p.teleport(ground.map_to_local(land))
+	var hgt := 3.5 * float(houses[fh]["andar"])
+	p.data.fall_injury(hgt)
+	sfx_at("queda", ground.map_to_local(land))
+	make_noise(ground.map_to_local(land), 200.0)
+
+
 # ======================================================================= fechaduras
 ## Fechaduras já abertas ("c:id" móvel ou caixa, "h:id" portas de um prédio). Vai para o save.
 var unlocked := {}

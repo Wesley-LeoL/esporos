@@ -111,6 +111,8 @@ func _draw() -> void:
 	# prédios descobertos (cor pelo estado do lugar)
 	for id in w.houses:
 		var hd: Dictionary = w.houses[id]
+		if hd.has("tower"):
+			continue  # andar de cima (fica na faixa reservada)
 		var hr: Rect2i = hd["rect"]
 		if not known.has(World.chunk_of(hr.position)):
 			continue
