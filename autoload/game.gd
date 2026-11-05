@@ -294,7 +294,7 @@ func debug_command(cmd: String) -> void:
 			var hr: Rect2i = world.houses[hl[int(a[0])]]["rect"]
 			var cc := hr.get_center()
 			if a.size() > 1:
-				cc = Vector2i(hr.end.x + 1, hr.end.y + 1)
+				cc = Vector2i(hr.end.x + 1, hr.end.y + 1) if a[1] != "atras" else Vector2i(hr.get_center().x, hr.position.y - 1)
 			p.teleport(world.ground.map_to_local(cc))
 		"demo":
 			var base2 := world.ground.local_to_map(world.ground.to_local(p.position))

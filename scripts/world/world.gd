@@ -126,6 +126,8 @@ var map_walls := {}
 var map_walls_by_chunk := {}
 ## Prédios abertos agora (jogador local dentro): id -> true.
 var house_open := {}
+## Prédios com o jogador local logo atrás (paredes e telhado translúcidos).
+var house_behind := {}
 ## Sombra do interior de cada prédio visto de fora (0 = sem sombra, 1 = escuro).
 var house_shade := {}
 ## Prédio onde a equipe acorda (sorteado no primeiro sobrevivente; vai para o save).

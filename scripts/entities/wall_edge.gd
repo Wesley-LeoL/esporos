@@ -6,9 +6,9 @@ extends StaticBody2D
 ## Serve para as paredes que o jogador constrói (kind = id em DB.BUILDS) e para as dos
 ## prédios do mapa (kind = folha w_<material>_<variação>, map = true).
 ##
-## Corte do The Sims: só com o jogador DENTRO do prédio, as paredes da frente dele (abaixo da
-## cabeça na tela) ficam baixas; as de trás continuam inteiras. De fora, nada abaixa. A
-## colisão não muda.
+## Corte do The Sims: com o jogador DENTRO do prédio, as paredes de baixo dele (a frente e as
+## divisórias) ficam baixas o tempo todo; as de cima continuam inteiras. De fora nada abaixa;
+## passando atrás, o prédio fica translúcido. A colisão não muda.
 
 var kind := "parede_madeira"
 var cell := Vector2i.ZERO
@@ -242,15 +242,35 @@ func _process(delta: float) -> void:
 		return
 	_cut_t = 0.1
 	var want := false
+	var alpha := 1.0
 	var pl: Player = world.local_player() if world != null else null
-	if pl != null and pl.alive and fence_vid < 0 and _player_inside(pl):
-		var off := position - pl.position
-		# só as paredes da frente (abaixo da cabeça na tela), perto do jogador; as de trás ficam
-		if off.y > 2.0 and Vector2(off.x, off.y * 2.0).length() < 210.0:
-			want = true
+	if pl != null and pl.alive and fence_vid < 0:
+		if house_id >= 0:
+			if bool(world.house_open.get(house_id, false)):
+				want = _lower_side(func(c: Vector2i) -> bool: return (world.houses[house_id]["rect"] as Rect2i).has_point(c))
+			elif bool(world.house_behind.get(house_id, false)):
+				alpha = 0.4
+		elif not map:
+			var off := position - pl.position
+			var near := Vector2(off.x, off.y * 2.0).length()
+			if _player_inside(pl):
+				if near < 520.0:
+					want = _lower_side(func(c: Vector2i) -> bool: return world.terrain_deltas.has(c))
+			elif off.y > 2.0 and near < 120.0:
+				alpha = 0.4  # o jogador passa atrás da sua construção
 	if want != low:
 		low = want
 		queue_redraw()
+	if not is_equal_approx(self_modulate.a, alpha):
+		self_modulate.a = alpha
+
+
+## Parede "de baixo" do prédio (fica baixa com o jogador dentro): a de fora na frente (o
+## lado de dentro é a célula de cima) e as divisórias. As de cima continuam inteiras.
+func _lower_side(inside: Callable) -> bool:
+	# a borda (célula, d) separa a célula da vizinha de baixo: se a própria célula é de dentro,
+	# a parede é a da frente (ou uma divisória)
+	return bool(inside.call(cell))
 
 
 ## O jogador está dentro do prédio desta parede? Prédio do mapa: o estado "dentro" da casa.

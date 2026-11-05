@@ -88,15 +88,10 @@ func _process(delta: float) -> void:
 		var c := Vector2i(floori(tp.x), floori(tp.y))
 		if rect.has_point(c):
 			state = "dentro"
-		else:
-			for wp in _windows:
-				var off := wp - pl.position
-				if Vector2(off.x, off.y * 2.0).length() < 62.0:
-					state = "espiando"
-					break
-			if state == "fora" and Rect2i(rect.position - Vector2i(_back, _back), rect.size + Vector2i(_back, _back)).has_point(c):
+		elif Rect2i(rect.position - Vector2i(_back, _back), rect.size + Vector2i(_back, _back)).has_point(c):
 				state = "atras"
 	world.house_open[id] = state == "dentro"
+	world.house_behind[id] = state == "atras"
 	if not _lights.is_empty():
 		var dk := world.darkness()
 		var dead := String(world.houses[id]["estado"]) != "viva"
@@ -110,9 +105,6 @@ func _process(delta: float) -> void:
 		"dentro":
 			roof_a = 0.0
 			shade = 0.0
-		"espiando":
-			roof_a = 0.0
-			shade = SHADE_PEEK
 		"atras":
 			roof_a = 0.45
 	if not is_equal_approx(_roof_node.modulate.a, roof_a):
