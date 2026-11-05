@@ -618,6 +618,24 @@ func debug_command(cmd: String) -> void:
 							if (world.houses[h10]["rect"] as Rect2i).has_point(Vector2i(floori(tp9.x), floori(tp9.y))):
 								hin = h10
 						print("  [obj] %s tile=%s casa_cells=%d casa_rect=%d" % [n9.get("art"), tp9, world.house_at((n9 as Node2D).position), hin])
+		"tpwin":
+			# fica do lado de fora, colado na janela mais perto; "lado" = ao lado dela (testes)
+			var bk11 := Vector3i(0, 0, -1)
+			var bd11 := 1e9
+			for k11: Vector3i in world.map_walls:
+				if WallEdge.kind_is_window(String(world.map_walls[k11]["kind"])) and int(world.map_walls[k11].get("h", -1)) >= 0:
+					var d11 := world.edge_pos(k11).distance_to(p.position)
+					if d11 < bd11:
+						bd11 = d11
+						bk11 = k11
+			if bk11.z >= 0:
+				var hr11: Rect2i = world.houses[int(world.map_walls[bk11]["h"])]["rect"]
+				var oc := Vector2i(bk11.x, bk11.y)
+				if hr11.has_point(oc):
+					oc += Vector2i(1, 0) if bk11.z == 0 else Vector2i(0, 1)
+				if a.size() > 0 and a[0] == "lado":
+					oc += Vector2i(0, 1) if bk11.z == 0 else Vector2i(1, 0)
+				p.teleport(world.ground.map_to_local(oc))
 		"presse":
 			p.press_interact()
 			print("[E] perto=%s opcoes=%s menu=%s" % [p.nearby, p.nearby.options(p) if p.nearby != null and p.nearby.has_method("options") else [], hud.world_menu.visible if hud.world_menu != null else false])

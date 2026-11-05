@@ -178,6 +178,21 @@ func _ready() -> void:
 	w3.apply_deltas(dl)
 	check(w3.lock_level("c:%d" % lk_id) == 0, "fechadura aberta vai para o save")
 	w3.free()
+	# espiar: só de frente para a janela, não ao lado dela
+	var wk := Vector3i(0, 0, -1)
+	for hid3 in w1.houses:
+		if not w1.houses[hid3].get("windows", []).is_empty():
+			wk = w1.houses[hid3]["windows"][0]
+			break
+	var wmid := w1.tile_pos(w1.edge_pos(wk))
+	var tc := func(c: Vector2i) -> Vector2: return w1.tile_pos(w1.ground.map_to_local(c))
+	var front := Vector2i(wk.x, wk.y)
+	var along_v := Vector2i(0, 1) if wk.z == 0 else Vector2i(1, 0)
+	var out_front := front + (Vector2i(1, 0) if wk.z == 0 else Vector2i(0, 1))
+	check(House.facing_window(tc.call(front), wmid, wk.z) and House.facing_window(tc.call(out_front), wmid, wk.z),
+		"de frente para a janela (dos dois lados) dá para espiar")
+	check(not House.facing_window(tc.call(front + along_v), wmid, wk.z) and not House.facing_window(tc.call(out_front - along_v), wmid, wk.z),
+		"ao lado da janela, encostado na parede, não espia")
 	w1.free()
 	w2.free()
 

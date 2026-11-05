@@ -25,7 +25,8 @@ var _t := 0.0
 var _scan_t := 0.0
 var _shade := -1.0
 var _inside_nodes: Array = []
-var _windows: Array[Vector2] = []
+## Janelas: meio da borda em coordenadas de tile e a direção da borda (0 ou 1).
+var _windows: Array = []
 ## Prédio alto: luzes da fachada à noite e quanto ele cobre para trás.
 var _lights: Array[PointLight2D] = []
 var _back := 2
@@ -50,7 +51,7 @@ func _ready() -> void:
 	_floor.rect = rect
 	world.art_ground.add_child(_floor)
 	for k: Vector3i in world.houses[id].get("windows", []):
-		_windows.append(world.edge_pos(k))
+		_windows.append([world.tile_pos(world.edge_pos(k)), k.z])
 	_t = randf() * 0.1
 	if roof.begins_with("torre"):
 		var n := int(world.houses[id].get("andares", 2))
@@ -75,6 +76,15 @@ func _exit_tree() -> void:
 		_floor.queue_free()
 
 
+## O jogador (tp, em tiles) está de frente para a janela (meio da borda em tiles, direção)?
+## Até um tile de distância da parede e dentro da largura da janela.
+static func facing_window(tp: Vector2, mid: Vector2, d: int) -> bool:
+	var off := tp - mid
+	var across := absf(off.x if d == 0 else off.y)
+	var along := absf(off.y if d == 0 else off.x)
+	return across < 1.1 and along < 0.55
+
+
 func _process(delta: float) -> void:
 	_t -= delta
 	_scan_t -= delta
@@ -88,10 +98,11 @@ func _process(delta: float) -> void:
 		if rect.has_point(c):
 			state = "dentro"
 		else:
-			# olhando pela janela (de perto, de fora): dá para ver o que tem dentro
-			for wp in _windows:
-				var off := wp - pl.position
-				if Vector2(off.x, off.y * 2.0).length() < 62.0:
+			# olhando pela janela (de perto, de fora): dá para ver o que tem dentro. Só conta
+			# de frente para a janela; ao lado dela, encostado na parede, não se vê nada.
+			var tp := world.tile_pos(pl.position)
+			for w in _windows:
+				if facing_window(tp, w[0], int(w[1])):
 					state = "espiando"
 					break
 		if state == "fora" and Rect2i(rect.position - Vector2i(_back, _back), rect.size + Vector2i(_back, _back)).has_point(c):
