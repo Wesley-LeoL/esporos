@@ -1151,6 +1151,8 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _process(_delta: float) -> void:
 	_sounds(_delta)
+	if not is_local() and world != null:
+		visible = not world.hidden_inside(position)  # outro jogador dentro de um prédio
 	if lamp != null and world != null:
 		var dk := world.darkness()
 		lamp.enabled = alive and (look & 8) != 0 and dk > 0.05

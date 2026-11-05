@@ -80,6 +80,7 @@ func _physics_process(delta: float) -> void:
 	if hp < _seen_hp - 0.01:
 		_flash = 0.15
 	_seen_hp = hp
+	visible = not world.hidden_inside(position)
 	if not Net.is_server():
 		var before := position
 		position = position.lerp(net_pos, clampf(delta * 10.0, 0.0, 1.0))

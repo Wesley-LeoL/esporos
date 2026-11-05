@@ -84,14 +84,21 @@ func _process(delta: float) -> void:
 	var state := "fora"
 	var pl: Player = world.local_player() if world != null else null
 	if pl != null and pl.alive:
-		var tp := world.tile_pos(pl.position)
-		var c := Vector2i(floori(tp.x), floori(tp.y))
+		var c := world.cell_at(pl.position)
 		if rect.has_point(c):
 			state = "dentro"
-		elif Rect2i(rect.position - Vector2i(_back, _back), rect.size + Vector2i(_back, _back)).has_point(c):
+		else:
+			# olhando pela janela (de perto, de fora): dá para ver o que tem dentro
+			for wp in _windows:
+				var off := wp - pl.position
+				if Vector2(off.x, off.y * 2.0).length() < 62.0:
+					state = "espiando"
+					break
+		if state == "fora" and Rect2i(rect.position - Vector2i(_back, _back), rect.size + Vector2i(_back, _back)).has_point(c):
 				state = "atras"
 	world.house_open[id] = state == "dentro"
 	world.house_behind[id] = state == "atras"
+	world.house_peek[id] = state == "espiando"
 	if not _lights.is_empty():
 		var dk := world.darkness()
 		var dead := String(world.houses[id]["estado"]) != "viva"
@@ -105,6 +112,9 @@ func _process(delta: float) -> void:
 		"dentro":
 			roof_a = 0.0
 			shade = 0.0
+		"espiando":
+			roof_a = 0.0
+			shade = SHADE_PEEK
 		"atras":
 			roof_a = 0.45
 	if not is_equal_approx(_roof_node.modulate.a, roof_a):
@@ -126,9 +136,13 @@ func _set_shade(s: float) -> void:
 	_floor.queue_redraw()
 	var k := 1.0 - 0.82 * s
 	var col := Color(k, k, minf(1.0, k * 1.08), 1.0)
+	# de fora (ou passando atrás) o que tem dentro some; só se vê entrando ou pela janela
+	var show := s < SHADE_DARK - 0.01
 	for n in _inside_nodes:
 		if is_instance_valid(n):
 			(n as CanvasItem).modulate = col
+			if not n is WallEdge:
+				(n as CanvasItem).visible = show
 
 
 func _scan() -> void:
@@ -141,6 +155,5 @@ func _scan() -> void:
 			continue
 		if not (n is Prop or n is LootContainer or n is Structure):
 			continue
-		var tp := world.tile_pos((n as Node2D).position)
-		if rect.has_point(Vector2i(floori(tp.x), floori(tp.y))):
+		if rect.has_point(world.cell_at((n as Node2D).position)):
 			_inside_nodes.append(n)

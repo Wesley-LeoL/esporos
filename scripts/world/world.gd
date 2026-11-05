@@ -128,6 +128,17 @@ var map_walls_by_chunk := {}
 var house_open := {}
 ## Prédios com o jogador local logo atrás (paredes e telhado translúcidos).
 var house_behind := {}
+## Prédios em que o jogador local está espiando pela janela.
+var house_peek := {}
+
+
+## O que está nesta posição fica escondido do jogador local? (dentro de um prédio em que ele
+## não está e que não está espiando pela janela)
+func hidden_inside(pos: Vector2) -> bool:
+	var h := house_at(pos)
+	if h < 0:
+		return false
+	return not (bool(house_open.get(h, false)) or bool(house_peek.get(h, false)))
 ## Sombra do interior de cada prédio visto de fora (0 = sem sombra, 1 = escuro).
 var house_shade := {}
 ## Prédio onde a equipe acorda (sorteado no primeiro sobrevivente; vai para o save).
@@ -658,6 +669,11 @@ func _unload_chunk(ch: Vector2i) -> void:
 
 
 # ======================================================================= esporos
+## Célula do mapa que contém o ponto (a mesma conversão usada para posicionar as coisas).
+func cell_at(world_pos: Vector2) -> Vector2i:
+	return ground.local_to_map(ground.to_local(world_pos))
+
+
 func tile_pos(world_pos: Vector2) -> Vector2:
 	return Vector2((world_pos.x / HALF_W + world_pos.y / HALF_H) * 0.5, (world_pos.y / HALF_H - world_pos.x / HALF_W) * 0.5)
 
@@ -998,7 +1014,7 @@ func floor_house_at(pos: Vector2) -> int:
 	var t := tile_pos(pos)
 	if t.length() < RADIUS + 6.0:
 		return -1
-	var h := int(house_cells.get(Vector2i(floori(t.x), floori(t.y)), -1))
+	var h := int(house_cells.get(cell_at(pos), -1))
 	return h if h >= 0 and houses[h].has("tower") else -1
 
 
@@ -1679,8 +1695,7 @@ func remove_barricade(p: Player, k: Vector3i) -> void:
 
 
 func house_at(pos: Vector2) -> int:
-	var t := tile_pos(pos)
-	return int(house_cells.get(Vector2i(floori(t.x), floori(t.y)), -1))
+	return int(house_cells.get(cell_at(pos), -1))
 
 
 ## Servidor: infectado bate numa abertura fechada: barricada perde vida; porta fechada
@@ -2187,8 +2202,39 @@ func village_robbed(vid: int) -> void:
 	_villages_state.rpc(_villages_list())
 
 
+## Prédios abandonados que já tiveram infectados sorteados (não vai para o save).
+var _house_inf := {}
+
+
+## Servidor: casas abandonadas e tomadas por esporos podem ter infectados dentro; são
+## sorteados quando um jogador chega perto pela primeira vez (sem nascer na cara dele).
+func _house_infected_step() -> void:
+	var total := get_tree().get_nodes_in_group("infected").size()
+	for h in houses:
+		if total >= 44:
+			return
+		var hd: Dictionary = houses[h]
+		if _house_inf.has(h) or not String(hd["estado"]) in ["abandonada", "esporos"] or hd.has("tower") or int(hd.get("camp", 0)) > 0:
+			continue
+		var r: Rect2i = hd["rect"]
+		var hpos := ground.map_to_local(r.get_center())
+		if nearest_player(hpos, 800.0) == null:
+			continue
+		_house_inf[h] = true
+		if nearest_player(hpos, 200.0) != null or rng.randf() > (0.5 if hd["estado"] == "abandonada" else 0.8):
+			continue
+		for i in rng.randi_range(1, 3 if r.size.x * r.size.y >= 16 else 2):
+			var q := r.position + Vector2i(rng.randi_range(0, r.size.x - 1), rng.randi_range(0, r.size.y - 1))
+			if occupied.has(q):
+				continue
+			var kind := "rastejante" if rng.randf() < 0.25 else ("comum" if rng.randf() < 0.85 else Infected.roll_kind(rng, 0.3))
+			spawn_infected(ground.map_to_local(q), false, {"kind": kind})
+			total += 1
+
+
 func _spawn_step() -> void:
 	_raider_step()
+	_house_infected_step()
 	var alive := alive_players()
 	if alive.is_empty():
 		return
@@ -2695,8 +2741,7 @@ func air_temp() -> float:
 ## Ambiente do corpo num ponto: ar, abrigo (dentro de prédio ou em piso construído), chuva e
 ## fogo por perto (fogareiro ou fornalha acesos, tambor com fogo).
 func body_env(pos: Vector2) -> Dictionary:
-	var t := tile_pos(pos)
-	var c := Vector2i(floori(t.x), floori(t.y))
+	var c := cell_at(pos)
 	var fire := false
 	for n in get_tree().get_nodes_in_group("heat"):
 		var nd := n as Node2D
@@ -3028,7 +3073,7 @@ func _npc_step(v: VillageData) -> void:
 		return
 	var center := ground.map_to_local(v.cell)
 	var roles: Array[String] = ["comerciante"]
-	for i in maxi(1, v.level()):
+	for i in maxi(1, v.level()) + v.guardas_extra:
 		roles.append("guarda")
 	for i in mini(3, maxi(1, v.pop / 3)):
 		roles.append("morador")

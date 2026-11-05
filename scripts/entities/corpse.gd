@@ -40,6 +40,7 @@ func interact(_player: Player) -> void:
 
 
 func _process(delta: float) -> void:
+	visible = Game.world == null or not Game.world.hidden_inside(position)
 	queue_redraw()
 	if not Net.is_server():
 		return

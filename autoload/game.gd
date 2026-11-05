@@ -593,6 +593,31 @@ func debug_command(cmd: String) -> void:
 					bv7 = n as Node2D
 			if bv7 != null:
 				p.teleport(bv7.position + Vector2(0, 14))
+		"tptrap":
+			var bt8 := Vector2i.ZERO
+			var bd8 := 1e9
+			for tc8: Vector2i in world.built:
+				if String(world.built[tc8]["kind"]) == "armadilha":
+					var d8 := world.ground.map_to_local(tc8).distance_to(p.position)
+					if d8 < bd8:
+						bd8 = d8
+						bt8 = tc8
+			p.teleport(world.ground.map_to_local(bt8))
+		"hstate":
+			var pc9 := world.tile_pos(p.position)
+			for h9 in world.houses:
+				var r9: Rect2i = world.houses[h9]["rect"]
+				if Vector2(r9.get_center()).distance_to(pc9) < 12.0:
+					print("[casa] %d %s dentro=%s atras=%s espia=%s" % [h9, r9, world.house_open.get(h9), world.house_behind.get(h9), world.house_peek.get(h9)])
+			for n9 in world.entities.get_children():
+				if (n9 is LootContainer or n9 is Prop) and (n9 as Node2D).position.distance_to(p.position) < 500:
+					if String(n9.get("art")) in ["geladeira", "cama", "tv"]:
+						var tp9 := world.tile_pos((n9 as Node2D).position)
+						var hin := -1
+						for h10 in world.houses:
+							if (world.houses[h10]["rect"] as Rect2i).has_point(Vector2i(floori(tp9.x), floori(tp9.y))):
+								hin = h10
+						print("  [obj] %s tile=%s casa_cells=%d casa_rect=%d" % [n9.get("art"), tp9, world.house_at((n9 as Node2D).position), hin])
 		"presse":
 			p.press_interact()
 			print("[E] perto=%s opcoes=%s menu=%s" % [p.nearby, p.nearby.options(p) if p.nearby != null and p.nearby.has_method("options") else [], hud.world_menu.visible if hud.world_menu != null else false])

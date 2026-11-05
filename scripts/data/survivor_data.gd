@@ -55,6 +55,9 @@ var synaptic: float = 0.0
 var pain_t: float = 0.0
 ## Agarrado por um infectado comum (segundos): não sai do lugar até soltar ou empurrar.
 var grab_t: float = 0.0
+## Ferido pelos espetos (fica lento) e espera até ferir de novo.
+var slow_t: float = 0.0
+var trap_cd: float = 0.0
 ## Descanso (100 = descansado; cai em ~1,5 dia do jogo), dormindo, temperatura do corpo (°C)
 ## e quanto está molhado (0-100).
 var sono: float = 100.0
@@ -708,6 +711,8 @@ func _hurt_internal(limb_id: String, amount: float, cause: String) -> void:
 func _tick_gear(delta: float) -> void:
 	pain_t = maxf(0.0, pain_t - delta)
 	grab_t = maxf(0.0, grab_t - delta)
+	slow_t = maxf(0.0, slow_t - delta)
+	trap_cd = maxf(0.0, trap_cd - delta)
 	well_fed_t = maxf(0.0, well_fed_t - delta)
 	if light_u != 0:
 		var f := find(light_u)
@@ -1223,6 +1228,8 @@ func speed_mult() -> float:
 		m -= 0.15
 	if sono < 8.0:
 		m -= 0.1
+	if slow_t > 0.0:
+		m *= 0.5
 	if grab_t > 0.0:
 		return 0.0  # agarrado: não sai do lugar
 	return maxf(0.3, m)
@@ -1649,7 +1656,7 @@ func to_dict() -> Dictionary:
 		"implants": implants.duplicate(true), "suppress_t": suppress_t, "tainted_t": tainted_t,
 		"antibiotic_t": antibiotic_t, "battery": battery, "heat": heat, "time_alive": time_alive,
 		"forca": forca, "resist": resist, "traits": traits.duplicate(), "stamina": stamina, "synaptic": synaptic,
-		"pain_t": pain_t, "grab_t": grab_t, "sono": sono, "sleeping": sleeping, "temp_corpo": temp_corpo, "molhado": molhado, "light_u": light_u, "well_fed_t": well_fed_t, "hotbar": hotbar.duplicate()}
+		"pain_t": pain_t, "grab_t": grab_t, "slow_t": slow_t, "sono": sono, "sleeping": sleeping, "temp_corpo": temp_corpo, "molhado": molhado, "light_u": light_u, "well_fed_t": well_fed_t, "hotbar": hotbar.duplicate()}
 
 
 static func from_dict(src: Dictionary) -> SurvivorData:
@@ -1691,6 +1698,7 @@ static func from_dict(src: Dictionary) -> SurvivorData:
 	d.synaptic = float(src.get("synaptic", 0.0))
 	d.pain_t = float(src.get("pain_t", 0.0))
 	d.grab_t = float(src.get("grab_t", 0.0))
+	d.slow_t = float(src.get("slow_t", 0.0))
 	d.sono = float(src.get("sono", 100.0))
 	d.sleeping = bool(src.get("sleeping", false))
 	d.temp_corpo = float(src.get("temp_corpo", 37.0))

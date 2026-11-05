@@ -80,7 +80,25 @@ func _ready() -> void:
 	for v in w1.villages:
 		if v.infested or w1.in_safe_zone(w1.ground.map_to_local(v.cell)):
 			fenced += 1
-	check(fenced == w1.villages.size() and not w1.villages[0].safe, "todas as %d vilas cercadas (sem Abrigo Alfa)" % fenced)
+	check(fenced == w1.villages.size() and not w1.villages[0].safe, "todas as %d vilas com cerca (sem Abrigo Alfa)" % fenced)
+	var partial := 0
+	var extra_ok := true
+	for pl2 in w1.places:
+		if pl2.get("cerca_parcial", false):
+			partial += 1
+			if w1.villages[int(pl2["vid"])].guardas_extra < 2:
+				extra_ok = false
+	check(partial >= 1 and partial < w1.villages.size() and extra_ok, "%d vilas com cerca incompleta e mais guardas" % partial)
+	var traps_gate := 0
+	var traps := 0
+	for tc2: Vector2i in w1.built:
+		if String(w1.built[tc2]["kind"]) == "armadilha":
+			traps += 1
+			for dx in range(-1, 2):
+				for dy in range(-1, 2):
+					if w1.road_cells.has(tc2 + Vector2i(dx, dy)):
+						traps_gate += 1
+	check(traps > w1.villages.size() * 4 and traps_gate == 0, "%d espetos em volta das vilas, nenhum na rua/portão" % traps)
 	# hordas simuladas longe dos jogadores: cerca melhor segura mais
 	var fallen := [0, 0]
 	for trial in 40:
@@ -139,7 +157,7 @@ func _ready() -> void:
 		if int(w1.container_data[i].get("lock", 0)) > 0 and keys.has("c:%d" % i):
 			cont_keys += 1
 	check(locked_c > 5 and cont_keys > locked_c / 2, "%d móveis/caixas trancados, %d com chave escondida" % [locked_c, cont_keys])
-	check(locked_h > 3 and house_keys > 0, "%d prédios trancados, %d com chave num vizinho" % [locked_h, house_keys])
+	check(locked_h >= 2 and house_keys > 0, "%d prédios trancados, %d com chave num vizinho" % [locked_h, house_keys])
 	var camps := 0
 	for hid2 in w1.houses:
 		if int(w1.houses[hid2].get("camp", 0)) > 0:

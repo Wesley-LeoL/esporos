@@ -76,6 +76,7 @@ func interact(_p: Player) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	visible = world == null or not world.hidden_inside(position)
 	_atk_anim = maxf(0.0, _atk_anim - delta)
 	if atk_seq != _seen_atk:
 		_seen_atk = atk_seq

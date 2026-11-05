@@ -280,8 +280,7 @@ func _player_inside(pl: Player) -> bool:
 		return bool(world.house_open.get(house_id, false))
 	if map:
 		return false
-	var tp := world.tile_pos(pl.position)
-	return world.terrain_deltas.has(Vector2i(floori(tp.x), floori(tp.y)))
+	return world.terrain_deltas.has(world.cell_at(pl.position))
 
 
 func _draw() -> void:

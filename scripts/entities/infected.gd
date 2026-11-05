@@ -469,6 +469,7 @@ func _die() -> void:
 
 
 func _process(_delta: float) -> void:
+	visible = world == null or not world.hidden_inside(position)
 	queue_redraw()
 
 

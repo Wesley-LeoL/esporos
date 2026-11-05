@@ -42,6 +42,8 @@ var request := {}
 var request_cd := 60.0
 ## Nível da cerca (1 chapa, 2 chapa reforçada, 3 muralha) e tempo até a próxima horda.
 var wall_tier := 1
+## Guardas a mais (vilas com a cerca incompleta). Vem da geração do mapa, não do save.
+var guardas_extra := 0
 var siege_cd := 200.0
 
 
@@ -89,7 +91,7 @@ func step(rng: RandomNumberGenerator, edge_ratio: float, near := false) -> void:
 	# longe dos jogadores, as hordas são simuladas: a defesa (cerca, guardas) segura parte
 	if not near and rng.randf() < 0.02:
 		var horde := rng.randf_range(8.0, 34.0) + edge_ratio * 20.0
-		var defense := float(wall_tier) * 9.0 + float(level()) * 4.0
+		var defense := float(wall_tier) * 9.0 + float(level()) * 4.0 + float(guardas_extra) * 4.0
 		var dmg := horde - defense
 		if dmg > 0.0:
 			infestation += dmg
@@ -102,7 +104,7 @@ func step(rng: RandomNumberGenerator, edge_ratio: float, near := false) -> void:
 	var rich := float(stock["comida"]) + float(stock["sucata"]) + float(stock["medico"])
 	if not near and rich > 30.0 and rng.randf() < 0.012:
 		var power := rng.randf_range(10.0, 30.0)
-		var guard := float(wall_tier) * 6.0 + float(level()) * 5.0
+		var guard := float(wall_tier) * 6.0 + float(level()) * 5.0 + float(guardas_extra) * 5.0
 		if power > guard:
 			for k in stock:
 				stock[k] = float(stock[k]) * 0.55

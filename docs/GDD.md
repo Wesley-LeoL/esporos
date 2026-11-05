@@ -189,8 +189,10 @@ Antes de iniciarmos a lógica, preciso que você me oriente a:
 - **Ritmo das ações:** vestir e tirar roupa, máscara, mochila e coldre é imediato; construir também. Toda ação com tempo (comer, tratar, fabricar, consertar, forçar fechadura...) fecha o inventário ou a janela aberta, e a barra de progresso aparece no jogo.
 - **Corte das paredes (revisado em 05/11):** regra fixa, sem depender de onde o personagem está dentro do prédio.
   - *Dentro* (prédio do mapa, ou piso construído pelo jogador): as paredes de baixo do prédio (a frente e as divisórias) ficam baixas o tempo todo; as de cima continuam inteiras.
-  - *Fora:* nada abaixa e o interior fica escuro (não se vê dentro por fora; o "espiar pela janela" saiu).
-  - *Passando atrás:* paredes e telhado ficam translúcidos para o personagem aparecer.
+  - *Fora:* nada abaixa; o piso fica escuro e o que está dentro (móveis, caixas, infectados, saqueadores, moradores, outros jogadores, corpos) não aparece.
+  - *Espiando pela janela* (de fora, colado nela): o telhado some e dá para ver o interior, meio escuro. As paredes não mexem.
+  - *Passando atrás:* paredes e telhado ficam translúcidos para o personagem aparecer, mas o que está dentro continua escondido.
+  - Dentro ou fora é decidido pela célula do mapa (`World.cell_at`), a mesma conversão usada para posicionar as coisas.
   - As cercas das vilas nunca abaixam.
 - **Rolagem das abas:** a posição da rolagem se mantém quando a tela se atualiza.
 - **Barra rápida no inventário:** com o menu aberto, a barra rápida sai da lateral e aparece no topo da aba Inventário, para arrastar itens para ela.
@@ -252,6 +254,12 @@ Antes de iniciarmos a lógica, preciso que você me oriente a:
 - **Corpo:** abaixo de 16 °C de sensação, o corpo esfria; acima de 18, volta aos 37. Abaixo de 35,5 °C: frio (estamina mais lenta). Abaixo de 34: hipotermia (mais lento, perde vida); abaixo de 32, perde vida rápido.
 - **Chuva:** fora de prédio molha; seca no abrigo e bem rápido perto do fogo.
 - **HUD:** barras novas de descanso e temperatura do corpo; avisos de molhado, com frio, hipotermia, exausto e agarrado.
+
+### Casas abandonadas com infectados e defesa das vilas (fase 22)
+
+- **Infectados dentro de casas:** casas abandonadas (50%) e tomadas por esporos (80%) podem ter 1 a 3 infectados lá dentro, sorteados quando um jogador chega a ~800 px pela primeira vez (nunca nascem colados nele). A maioria é comum; um em cada quatro é rastejante. Acampamentos de saqueadores não têm.
+- **Cercas incompletas:** 40% das vilas não terminaram a cerca (1 ou 2 trechos abertos de 3 a 6 tiles por lado, fora os portões) e compensam com 2 guardas a mais. Na simulação longe dos jogadores, os guardas extras também seguram hordas e assaltos.
+- **Espetos:** saíram da frente dos portões. Agora ficam espalhados em volta da vila, a 1-3 tiles da cerca, longe das ruas (5 a 8 por vila, mais 4 onde a cerca ficou aberta). Dá para passar por cima, mas quem pisa se fere: infectados, saqueadores e jogadores. No jogador, fere uma perna (6) e deixa lento pela metade por 3 s (aviso "pé ferido"). Vale também para as armadilhas que o jogador constrói.
 
 ### Saqueadores (fase 18)
 
@@ -344,4 +352,5 @@ Antes de iniciarmos a lógica, preciso que você me oriente a:
 | 19 | Prédios de 2 e 3 andares iluminados, escadas, andares de cima, pulo da janela | **feito** |
 | 20 | Sons provisórios com tabela central | **feito** |
 | 21 | Menu pequeno do [E] para tudo no mundo, tempos das ações, comum lento que agarra | **feito** |
+| 22 | Interior escondido de fora (espiar pela janela volta), infectados em casas abandonadas, vilas com cerca incompleta e mais guardas, espetos em volta da vila que ferem e deixam lento | **feito** |
 | 9 | Construção em bordas (estilo The Sims) com 3 abas, utilidades e decoração, rede de energia (eólico, combustão, baterias), mesa de reparos, dia/noite, clima e iluminação | **feito** |

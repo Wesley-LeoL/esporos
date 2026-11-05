@@ -1643,6 +1643,8 @@ func _update_effects(d: SurvivorData, spore: float) -> void:
 		list.append(["relogio", "EXAUSTO", UITheme.WARN])
 	if d.grab_t > 0.0:
 		list.append(["alerta", "AGARRADO", UITheme.DANGER])
+	if d.slow_t > 0.0:
+		list.append(["alerta", "PÉ FERIDO (LENTO)", UITheme.WARN])
 	if d.suppress_t > 0.0:
 		list.append(["supressor", "SUPRESSOR %ds" % int(d.suppress_t), UITheme.CONTAMINATION])
 	if d.antibiotic_t > 0.0:

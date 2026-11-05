@@ -348,7 +348,7 @@ const BUILDS := {
 		"ferramentas": ["martelo"], "xp": {"metalurgia": 3}, "desc": "Junta água da chuva (contaminada: ferva antes). [E] recolhe."},
 	"armadilha": {"nome": "Armadilha de espetos", "aba": "utilidades", "tipo": "objeto", "andavel": true,
 		"custo": {"sucata": 3, "pregos": 8, "metal": 1}, "req": {"metalurgia": 1}, "ferramentas": ["martelo"], "xp": {"metalurgia": 6},
-		"desc": "Fere os infectados que passam por cima. Você pode pisar sem se ferir."},
+		"desc": "Fere quem passa por cima: infectados, saqueadores e também você (fere a perna e deixa lento). Dá para atravessar."},
 	"canteiro": {"nome": "Canteiro", "aba": "utilidades", "tipo": "objeto", "custo": {"madeira": 3, "pregos": 4}, "req": {}, "ferramentas": ["martelo"],
 		"xp": {"carpintaria": 3, "agricultura": 3}, "desc": "Plante, regue e colha. A chuva rega sozinha."},
 	"bau": {"nome": "Baú", "aba": "utilidades", "tipo": "bau", "custo": {"madeira": 3, "pregos": 4}, "req": {}, "ferramentas": ["martelo"],

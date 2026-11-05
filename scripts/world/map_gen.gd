@@ -123,6 +123,9 @@ func _places() -> void:
 			pl["vid"] = vd.id
 			pl["nome"] = vd.nome
 			pl["cerca"] = int(pl["r"]) + 2
+			# algumas vilas não terminaram a cerca: compensam com mais guardas
+			pl["cerca_parcial"] = rng.randf() < 0.4
+			vd.guardas_extra = 2 if pl["cerca_parcial"] else 0
 			w.villages.append(vd)
 		else:
 			if pl["estado"] == "viva":
@@ -150,15 +153,29 @@ func _fence(pl: Dictionary) -> void:
 	var c: Vector2i = pl["cell"]
 	var R: int = pl["cerca"]
 	var keys: Array = []
+	# cerca incompleta: 1 ou 2 trechos abertos por lado
+	var gaps: Array = [[], [], [], []]
+	if pl.get("cerca_parcial", false):
+		for s in 4:
+			for g in rng.randi_range(1, 2):
+				var st := rng.randi_range(-R + 1, R - 5)
+				gaps[s].append(Vector2i(st, st + rng.randi_range(3, 6)))
 	for i in range(-R, R + 1):
 		var edges := [Vector3i(c.x + i, c.y - R - 1, 1), Vector3i(c.x + i, c.y + R, 1),
 			Vector3i(c.x - R - 1, c.y + i, 0), Vector3i(c.x + R, c.y + i, 0)]
-		for k: Vector3i in edges:
+		for s in 4:
+			var k: Vector3i = edges[s]
 			var a := Vector2i(k.x, k.y)
 			var b := a + (Vector2i(1, 0) if k.z == 0 else Vector2i(0, 1))
 			if Vector2(a).length() > World.RADIUS - 3.0:
 				continue
 			var gate := w.road_cells.has(a) or w.road_cells.has(b)
+			var open_gap := false
+			for gp: Vector2i in gaps[s]:
+				if i >= gp.x and i <= gp.y:
+					open_gap = true
+			if open_gap and not gate:
+				continue
 			w.map_walls[k] = {"kind": "w_muro_porta" if gate else "w_muro_parede", "open": false, "h": -1,
 				"vid": int(pl["vid"]), "hp": World.FENCE_HP[1], "max": World.FENCE_HP[1], "broken": false}
 			keys.append(k)
@@ -166,15 +183,27 @@ func _fence(pl: Dictionary) -> void:
 			if not w.map_walls_by_chunk.has(ch):
 				w.map_walls_by_chunk[ch] = []
 			w.map_walls_by_chunk[ch].append(k)
-			# armadilhas de espetos do lado de fora dos portões
-			if gate:
-				var outside := a if absi(a.x - c.x) > R or absi(a.y - c.y) > R else b
-				var out_dir := outside - (b if outside == a else a)
-				for step in [1, 2]:
-					var tc: Vector2i = outside + out_dir * step
-					if not w.built.has(tc) and Vector2(tc).length() < World.RADIUS - 3.0:
-						w.built[tc] = {"kind": "armadilha", "fuel": 0.0, "open": false, "eternal": true, "vila": int(pl["vid"])}
 	pl["fence_keys"] = keys
+	# espetos em alguns pontos em volta da vila (fora das ruas e portões), mais onde a cerca
+	# ficou aberta
+	var n_traps := rng.randi_range(5, 8) + (4 if pl.get("cerca_parcial", false) else 0)
+	var tries := 0
+	while n_traps > 0 and tries < 120:
+		tries += 1
+		var side := rng.randi() % 4
+		var t := rng.randi_range(-R, R)
+		var outd := rng.randi_range(1, 3)
+		var tc: Vector2i = c + [Vector2i(t, -R - outd), Vector2i(t, R + outd), Vector2i(-R - outd, t), Vector2i(R + outd, t)][side]
+		var near_road := false
+		for dx in range(-1, 2):
+			for dy in range(-1, 2):
+				if w.road_cells.has(tc + Vector2i(dx, dy)):
+					near_road = true
+		if near_road or w.built.has(tc) or not w._free_cell(tc):
+			continue
+		w.built[tc] = {"kind": "armadilha", "fuel": 0.0, "open": false, "eternal": true, "vila": int(pl["vid"])}
+		w.occupied[tc] = true
+		n_traps -= 1
 	# torres automáticas nos cantos de dentro (só funcionam com o muro de nível 2 ou mais)
 	for corner in [Vector2i(-R + 1, -R + 1), Vector2i(R - 1, -R + 1), Vector2i(-R + 1, R - 1), Vector2i(R - 1, R - 1)]:
 		var tcell: Vector2i = c + corner
