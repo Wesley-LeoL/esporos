@@ -268,7 +268,7 @@ func _grid_text() -> String:
 		return ""
 	var t := " · rede %d/%d W" % [int(grid.get("gp", 0)), int(grid.get("gc", 0))]
 	if int(grid.get("gb", -1)) >= 0:
-		t += " · baterias %d%%" % int(grid["gb"])
+		t += " · acumuladores %d%%" % int(grid["gb"])
 	return t
 
 
@@ -278,8 +278,8 @@ func prompt() -> String:
 			return "[E] %s a porta" % ("Fechar" if open else "Abrir")
 		"gerador":
 			if eternal:
-				return "Gerador do abrigo (250 W, sem combustível)" + _grid_text()
-			return "[E] Abastecer gerador (combustível %d%%)%s" % [int(fuel), _grid_text()]
+				return "Dínamo do abrigo (250 W, caldeira sempre acesa)" + _grid_text()
+			return "[E] Abastecer caldeira (querosene %d%%)%s" % [int(fuel), _grid_text()]
 		"torre" when vila >= 0:
 			return "Torre da vila: %s" % ("vigiando" if powered else "desligada (liga quando a cerca chega ao nível 2)")
 		"purificador", "torre", "vedacao":
@@ -294,10 +294,10 @@ func prompt() -> String:
 		"mesa_reparo":
 			return "[E] Usar mesa de reparos"
 		"eolico":
-			var w := "[E] Subir o mastro (%d/%d módulos)" % [mods, MAX_MODS] if mods < MAX_MODS else "Eólico no topo (%d módulos)" % mods
+			var w := "[E] Subir o mastro (%d/%d módulos)" % [mods, MAX_MODS] if mods < MAX_MODS else "Cata-vento no topo (%d módulos)" % mods
 			return "%s · vento aqui %d%%%s" % [w, int(aberto * 100.0), _grid_text()]
 		"bateria_casa":
-			return "Banco de baterias: %d%%%s" % [int(charge / float(DB.BUILDS["bateria_casa"]["capacidade"]) * 100.0), _grid_text()]
+			return "Banco de acumuladores: %d%%%s" % [int(charge / float(DB.BUILDS["bateria_casa"]["capacidade"]) * 100.0), _grid_text()]
 		"coletor":
 			return "[E] Recolher água da chuva (%d)" % water if water > 0 else "Coletor de chuva: vazio"
 		"cama":
@@ -416,7 +416,7 @@ func options(p: Player) -> Array:
 		"gerador":
 			if eternal:
 				return []
-			return [{"id": "abastecer", "txt": "Abastecer (combustível %d%%)" % int(fuel), "ok": d.count("combustivel") > 0 and fuel < 99.5}]
+			return [{"id": "abastecer", "txt": "Abastecer (querosene %d%%)" % int(fuel), "ok": d.count("combustivel") > 0 and fuel < 99.5}]
 		"eolico":
 			var out: Array = []
 			if mods < MAX_MODS:
@@ -508,18 +508,18 @@ func interact(player: Player) -> void:
 			world.make_noise(position, 140.0)
 		"gerador":
 			if eternal:
-				Game.tell(player.peer, "O gerador do abrigo funciona sem parar.")
+				Game.tell(player.peer, "O dínamo do abrigo funciona sem parar.")
 			elif fuel >= 99.5:
-				Game.tell(player.peer, "O gerador já está cheio.")
+				Game.tell(player.peer, "A caldeira já está cheia.")
 			elif player.data.count("combustivel") > 0:
 				fuel = minf(100.0, fuel + player.data.pour_fuel(100.0 - fuel))
-				Game.tell(player.peer, "Gerador abastecido (%d%%)." % int(fuel))
+				Game.tell(player.peer, "Caldeira abastecida (%d%%)." % int(fuel))
 				_refresh_power()
 				world.structure_changed(self)
 			else:
-				Game.tell(player.peer, "Você precisa de um galão de combustível.")
+				Game.tell(player.peer, "Você precisa de um galão de querosene.")
 		_:
-			Game.tell(player.peer, prompt() + (". Ligue-o a um gerador abastecido." if not powered else "."))
+			Game.tell(player.peer, prompt() + (". Ligue-o a um dínamo abastecido." if not powered else "."))
 
 
 ## Estado recebido do servidor.
@@ -630,7 +630,7 @@ func to_dict() -> Dictionary:
 func _draw() -> void:
 	if kind == "vedacao" and powered:
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2(1.0, 0.5))
-		draw_arc(Vector2.ZERO, World.SEAL_RADIUS, 0.0, TAU, 64, Color(0.32, 0.9, 1.0, 0.3), 1.5)
+		draw_arc(Vector2.ZERO, World.SEAL_RADIUS, 0.0, TAU, 64, Color(0.95, 0.9, 0.8, 0.3), 1.5)
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	if kind == "edificio" or not GenCatalog.SHEETS.has(kind):
 		return

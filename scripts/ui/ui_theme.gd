@@ -1,14 +1,15 @@
 class_name UITheme
 extends RefCounted
-## Paleta central da interface. Ajuste estes valores ao substituir a arte provisória.
+## Paleta central da interface (steampunk: madeira escura, latão, cobre e papel envelhecido).
+## Ajuste estes valores ao substituir a arte provisória.
 
-const BACKGROUND := Color("#101820")
-const PANEL := Color("#182630")
-const PANEL_SOFT := Color("#202f39")
-const BORDER := Color("#3d6570")
-const TEXT := Color("#e4edf0")
-const MUTED := Color("#91a6ad")
-const ACCENT := Color("#66d9d0")
+const BACKGROUND := Color("#1f1911")
+const PANEL := Color("#2e261a")
+const PANEL_SOFT := Color("#372f22")
+const BORDER := Color("#6c5b41")
+const TEXT := Color("#efe2c4")
+const MUTED := Color("#b39e7c")
+const ACCENT := Color("#e0aa48")
 const CONTAMINATION := Color("#a6d65c")
 const LIFE := Color("#ef6268")
 const HUNGER := Color("#e9ad52")
@@ -37,7 +38,7 @@ static func bar_fill(color: Color) -> StyleBoxFlat:
 
 static func bar_background() -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color("#0b1116")
+	style.bg_color = Color("#15110c")
 	style.set_corner_radius_all(2)
 	return style
 
@@ -50,11 +51,12 @@ const FONT_PATH := "res://assets/art/ui/fonts/Jersey10-Regular.ttf"
 const FONT_S := 19  # tamanho nativo da grade da fonte (pixels finos)
 const FONT_L := 38  # 2x (pixels grossos, como o mundo)
 const FONT_XL := 76
-const MAGENTA := Color("#e070ff")
+## Cobre (antes magenta): tensão nervosa, habilidades.
+const MAGENTA := Color("#d9824a")
 const DANGER := Color("#ef6268")
 const WARN := Color("#e9ad52")
-const SHADOW_INK := Color(0.0, 0.02, 0.04, 0.85)
-const SCANLINES := true
+const SHADOW_INK := Color(0.03, 0.02, 0.01, 0.85)
+const SCANLINES := false
 
 static var _font: FontFile
 static var _theme: Theme
@@ -143,10 +145,10 @@ static func build_theme() -> Theme:
 	t.set_stylebox("focus", "Button", StyleBoxEmpty.new())
 	t.set_color("font_color", "Button", TEXT)
 	t.set_color("font_hover_color", "Button", ACCENT)
-	t.set_color("font_pressed_color", "Button", Color("#e6fffb"))
+	t.set_color("font_pressed_color", "Button", Color("#faf4eb"))
 	t.set_color("font_focus_color", "Button", TEXT)
-	t.set_color("font_disabled_color", "Button", Color("#4a5d64"))
-	t.set_color("font_hover_pressed_color", "Button", Color("#e6fffb"))
+	t.set_color("font_disabled_color", "Button", Color("#62594c"))
+	t.set_color("font_hover_pressed_color", "Button", Color("#faf4eb"))
 	# abas
 	var tc := Vector4(14, 8, 14, 6)
 	t.set_stylebox("tab_unselected", "TabContainer", box("tab_normal", 8, tc))
@@ -163,13 +165,13 @@ static func build_theme() -> Theme:
 	t.set_constant("side_margin", "TabContainer", 0)
 	# rolagem (retângulos simples: ficam nítidos e garantem a largura mínima)
 	var track := StyleBoxFlat.new()
-	track.bg_color = Color("#0b1218")
+	track.bg_color = Color("#17130c")
 	track.border_width_left = 2
 	track.border_color = BORDER
 	track.content_margin_left = 7
 	track.content_margin_right = 7
 	var grab := StyleBoxFlat.new()
-	grab.bg_color = Color("#2a6b66")
+	grab.bg_color = Color("#66502f")
 	grab.border_width_left = 2
 	grab.border_width_right = 2
 	grab.border_color = ACCENT
@@ -191,7 +193,7 @@ static func build_theme() -> Theme:
 	t.set_color("font_color", "LineEdit", TEXT)
 	t.set_color("font_placeholder_color", "LineEdit", MUTED)
 	t.set_color("caret_color", "LineEdit", ACCENT)
-	t.set_color("selection_color", "LineEdit", Color(0.4, 0.85, 0.82, 0.35))
+	t.set_color("selection_color", "LineEdit", Color(0.82, 0.66, 0.43, 0.35))
 	# botão de alternar (co-op): usa o estilo "pressionado" quando ligado
 	t.set_color("font_pressed_color", "Button", ACCENT)
 	# painéis e barras simples

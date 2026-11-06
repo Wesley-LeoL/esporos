@@ -57,7 +57,7 @@ func show_item(id: String, n: int) -> void:
 	item_id = id
 	count = n
 	_icon.texture = GenArt.icon(id) if id != "" else null
-	_icon.modulate = Color.WHITE if n > 0 else Color(1, 1, 1, 0.3)
+	_icon.modulate = Color.WHITE if n > 0 else Color(1.00, 1.00, 1.00, 0.3)
 	_num.text = str(n) if id != "" and n != 1 else ""
 	tooltip_text = ("%s (x%d)\nTecla %d ou clique: escolher · escolhido, o clique usa · botão direito: tirar" % [DB.item_name(id), n, index + 1]) if id != "" else \
 		"Arraste um item do inventário para cá"

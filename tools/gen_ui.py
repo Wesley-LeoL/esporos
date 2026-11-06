@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Gera a arte da interface (HUD) do Esporos em pixel art ciberpunk.
+"""Gera a arte da interface (HUD) do Esporos em pixel art steampunk (madeira, latão e cobre).
 
 Tudo é desenhado em "pixels de desenho" e salvo ampliado 2x (vizinho mais próximo), para
 casar com o mundo: na janela padrão (1600x900) cada pixel de desenho ocupa 2x2 pixels.
@@ -28,18 +28,18 @@ def rgba(h, a=255):
 
 
 # paleta (mesma base de scripts/ui/ui_theme.gd + o pacote de arte)
-INK = "#05080b"
-BG = "#0b1218"
-PANEL = "#101a22"
-PANEL_2 = "#15232d"
-EDGE = "#2b424c"
-EDGE_2 = "#3d6570"
-TEAL = "#66d9d0"
-TEAL_D = "#2a6b66"
-MAGENTA = "#e070ff"
+INK = "#0b0905"
+BG = "#17130c"
+PANEL = "#211b11"
+PANEL_2 = "#2b2317"
+EDGE = "#4a3e2d"
+EDGE_2 = "#6c5b41"
+TEAL = "#e0aa48"  # latão (o nome ficou do tema antigo)
+TEAL_D = "#6e4f1f"
+MAGENTA = "#d9824a"  # cobre
 AMBER = "#e9ad52"
 RED = "#ef6268"
-SHADOW = "#04070a"
+SHADOW = "#0a0804"
 
 previews = []
 
@@ -116,7 +116,7 @@ def gen_panels():
                                                ("panel_alert", "#6b2a3a", RED, AMBER, 245),
                                                ("panel_warn", "#6b5a2a", AMBER, RED, 238)):
         w = h = 32
-        img, m = framed(w, h, PANEL, edge, (5, 0, 5, 0), alpha, inner="#17262f")
+        img, m = framed(w, h, PANEL, edge, (5, 0, 5, 0), alpha, inner="#2d2519")
         # cantoneiras acesas
         for i in range(5):
             put(img, i, 4 - i, rgba(accent))
@@ -131,7 +131,7 @@ def gen_panels():
         put(img, 2, h - 3, rgba(accent2))
         save(img, name)
     # cartão (vitais) mais discreto
-    img, m = framed(24, 24, "#0e171e", EDGE, (3, 0, 3, 0), 225)
+    img, m = framed(24, 24, "#1d170f", EDGE, (3, 0, 3, 0), 225)
     for i in range(3):
         put(img, i, 2 - i, rgba(EDGE_2))
     save(img, "card")
@@ -140,7 +140,7 @@ def gen_panels():
     img = canvas(w, h)
     rect(img, 0, 0, w - 1, h - 1, rgba(PANEL_2, 245))
     hline(img, 0, w - 1, h - 1, rgba(TEAL))
-    hline(img, 0, w - 1, 0, rgba("#1e3440"))
+    hline(img, 0, w - 1, 0, rgba("#3d3221"))
     for x in range(w - 22, w):
         for y in range(1, h - 1):
             if ((x + y) // 3) % 2 == 0:
@@ -164,10 +164,10 @@ def gen_panels():
 def gen_buttons():
     w, h = 16, 12
     specs = {
-        "button_normal": ("#13212a", EDGE_2, "#1d3440", None),
-        "button_hover": ("#183440", TEAL, "#24485a", TEAL),
-        "button_pressed": (TEAL_D, TEAL, "#3a8a83", None),
-        "button_disabled": ("#0c1318", "#1c2a31", None, None),
+        "button_normal": ("#282015", EDGE_2, "#3d3120", None),
+        "button_hover": ("#3d2f1b", TEAL, "#564428", TEAL),
+        "button_pressed": (TEAL_D, TEAL, "#846940", None),
+        "button_disabled": ("#17130d", "#2f281e", None, None),
     }
     for name, (fill, edge, hi, bar) in specs.items():
         img, m = framed(w, h - 1, fill, edge, (2, 0, 2, 0), 245)
@@ -184,8 +184,8 @@ def gen_buttons():
         save(full, name)
     # abas
     w, h = 16, 12
-    for name, fill, edge, top in (("tab_normal", "#0d151b", EDGE, None), ("tab_hover", "#13212a", EDGE_2, None),
-                                  ("tab_selected", "#183440", TEAL, TEAL)):
+    for name, fill, edge, top in (("tab_normal", "#1a150e", EDGE, None), ("tab_hover", "#282015", EDGE_2, None),
+                                  ("tab_selected", "#3d2f1b", TEAL, TEAL)):
         img = canvas(w, h)
         m = cut_mask(w, h, 3, 3, 0, 0)
         img[m] = rgba(fill, 245)
@@ -194,21 +194,21 @@ def gen_buttons():
         img[ring] = rgba(edge)
         if top:
             hline(img, 3, w - 4, 1, rgba(top))
-            hline(img, 3, w - 4, 2, rgba("#3a8a83"))
+            hline(img, 3, w - 4, 2, rgba("#846940"))
         save(img, name)
     # tecla (keycap)
     w, h = 12, 13
     img = canvas(w, h)
     m = cut_mask(w, h - 2, 1, 1, 1, 1)
-    img[:h - 2][m] = rgba("#22323b")
-    img[:h - 2][outline_of(m)] = rgba("#91a6ad")
-    hline(img, 2, w - 3, 1, rgba("#3a4f5a"))
-    rect(img, 1, h - 2, w - 2, h - 1, rgba("#0b1116"))
-    hline(img, 1, w - 2, h - 2, rgba("#4a5f6a"))
+    img[:h - 2][m] = rgba("#393124")
+    img[:h - 2][outline_of(m)] = rgba("#aba193")
+    hline(img, 2, w - 3, 1, rgba("#584d3c"))
+    rect(img, 1, h - 2, w - 2, h - 1, rgba("#15110c"))
+    hline(img, 1, w - 2, h - 2, rgba("#685d4c"))
     save(img, "keycap")
     # barra de rolagem
     img = canvas(6, 12)
-    rect(img, 0, 0, 5, 11, rgba("#0b1218", 220))
+    rect(img, 0, 0, 5, 11, rgba("#17130c", 220))
     vline(img, 0, 0, 11, rgba(EDGE))
     save(img, "scroll_track")
     img = canvas(6, 12)
@@ -218,7 +218,7 @@ def gen_buttons():
     save(img, "scroll_grabber")
     # slot de equipamento
     w = h = 20
-    img, m = framed(w, h, "#0c141a", EDGE_2, (3, 0, 3, 0), 230, inner="#132029")
+    img, m = framed(w, h, "#19140d", EDGE_2, (3, 0, 3, 0), 230, inner="#272015")
     put(img, w - 3, 2, rgba(TEAL))
     save(img, "slot")
 
@@ -244,9 +244,9 @@ def gen_screen():
     save(img, "vignette")
     # grade de fundo do terminal (ladrilho)
     img = canvas(16, 16)
-    hline(img, 0, 15, 15, (102, 217, 208, 14))
-    vline(img, 15, 0, 15, (102, 217, 208, 14))
-    put(img, 15, 15, (102, 217, 208, 40))
+    hline(img, 0, 15, 15, (224, 170, 72, 14))
+    vline(img, 15, 0, 15, (224, 170, 72, 14))
+    put(img, 15, 15, (224, 170, 72, 40))
     save(img, "grid")
 
 

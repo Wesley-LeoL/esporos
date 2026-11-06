@@ -2,7 +2,7 @@ class_name HUD
 extends CanvasLayer
 ## Interface do jogo em pixel art ciberpunk: vitais em barras segmentadas, painel de ar,
 ## atalhos, equipamento e efeitos, registro estilo terminal, aviso de interação e o menu
-## "terminal de campo" (inventário, corpo, habilidades, construção, implantes, mundo, legado).
+## "diário de campo" (inventário, corpo, habilidades, construção, próteses, mundo, legado).
 ##
 ## A interface é montada em resolução dupla (UITheme.UI_SCALE): 1 unidade = 1 px da janela
 ## padrão de 1600x900. A arte de assets/art/ui usa 2x2 px por pixel de desenho, como o mundo.
@@ -13,11 +13,11 @@ const VITALS := [
 	["hunger", "fome", "FOME", UITheme.HUNGER, true],
 	["thirst", "sede", "SEDE", UITheme.THIRST, false],
 	["stamina", "estamina", "ESTAMINA", Color("#e6d26a"), false],
-	["sono", "relogio", "DESCANSO", Color("#9b8cff"), false],
+	["sono", "relogio", "DESCANSO", Color("#e9cda2"), false],
 	["temp", "calor", "TEMPERATURA DO CORPO", Color("#ff9a5a"), false],
 ]
 const TAB_DEFS := [["inv", "Inventário", "mochila"], ["corpo", "Corpo", "corpo"], ["skills", "Habilidades", "chip"],
-	["impl", "Implantes", "bateria"], ["mapa", "Mapa", "mundo"]]
+	["impl", "Próteses", "bateria"], ["mapa", "Mapa", "mundo"]]
 const TAB_INV := 0
 const TAB_MAP := 4
 const HINTS := [["SHIFT", "CORRER"], ["C", "AGACHAR"], ["R", "RECARREGAR"], ["E", "INTERAGIR"],
@@ -380,7 +380,7 @@ func _build_log() -> void:
 func _build_equipment() -> void:
 	equip_box = _hbox(10)
 	ui.add_child(equip_box)
-	for def in [["carga", "CARGA"], ["arma", "ARMA"], ["filtro", "MÁSCARA"], ["bateria", "BATERIA"]]:
+	for def in [["carga", "CARGA"], ["arma", "ARMA"], ["filtro", "MÁSCARA"], ["bateria", "CÉLULA"]]:
 		var slot := _panel("slot", 12, Vector4(8, 8, 8, 6))
 		slot.custom_minimum_size = Vector2(96, 96)
 		equip_box.add_child(slot)
@@ -465,7 +465,7 @@ func _build_menu() -> void:
 	menu_root.visible = false
 	ui.add_child(menu_root)
 	var dim := ColorRect.new()
-	dim.color = Color(0.01, 0.02, 0.03, 0.62)
+	dim.color = Color(0.03, 0.02, 0.01, 0.62)
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	menu_root.add_child(dim)
 	var center := CenterContainer.new()
@@ -485,7 +485,7 @@ func _build_menu() -> void:
 	var hrow := _hbox(14)
 	head.add_child(hrow)
 	hrow.add_child(UITheme.icon_rect("chip", UITheme.ACCENT, 40))
-	hrow.add_child(_label("TERMINAL DE CAMPO", L, UITheme.ACCENT))
+	hrow.add_child(_label("DIÁRIO DE CAMPO", L, UITheme.ACCENT))
 	menu_sub = _label("", S, UITheme.MUTED)
 	menu_sub.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	menu_sub.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -539,7 +539,7 @@ func _build_death() -> void:
 	var sk := UITheme.icon_rect("caveira", UITheme.DANGER, 96)
 	sk.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	col.add_child(sk)
-	death_title = _label("SINAL VITAL PERDIDO", UITheme.FONT_XL, UITheme.DANGER)
+	death_title = _label("O CORAÇÃO PAROU", UITheme.FONT_XL, UITheme.DANGER)
 	death_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(death_title)
 	col.add_child(_pixel_line(Color("#6b2a3a")))
@@ -741,7 +741,7 @@ func _build_window() -> void:
 	window_root.visible = false
 	ui.add_child(window_root)
 	var dim := ColorRect.new()
-	dim.color = Color(0.01, 0.02, 0.03, 0.45)
+	dim.color = Color(0.03, 0.02, 0.01, 0.45)
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	window_root.add_child(dim)
 	var center := CenterContainer.new()
@@ -1504,7 +1504,7 @@ func _neural_glitch(d: SurvivorData) -> void:
 		ui.position = Vector2(randf_range(-7, 7), randf_range(-4, 4)).round()
 		ui.modulate = Color(1.0, randf_range(0.55, 1.0), 1.0, randf_range(0.7, 1.0))
 	if randf() < 0.04:
-		ui.modulate = Color(1, 0.3, 1, 0.35)
+		ui.modulate = Color(0.90, 0.57, 0.40, 0.35)
 	hurt.color = Color(0.7, 0.1, 0.9, 0.12 + 0.08 * sin(_t * 23.0))
 
 
@@ -1516,7 +1516,7 @@ var _sleep_label: Label
 func _update_sleep_overlay(d: SurvivorData) -> void:
 	if _sleep_cover == null:
 		_sleep_cover = ColorRect.new()
-		_sleep_cover.color = Color(0.01, 0.01, 0.03, 0.7)
+		_sleep_cover.color = Color(0.03, 0.02, 0.01, 0.7)
 		_sleep_cover.set_anchors_preset(Control.PRESET_FULL_RECT)
 		_sleep_cover.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		ui.add_child(_sleep_cover)
@@ -1570,13 +1570,13 @@ func _update_equipment(d: SurvivorData) -> void:
 	var carga: Array = slots["carga"]
 	var pack: Dictionary = d.equip["mochila"]
 	(carga[0] as TextureRect).texture = GenArt.icon(pack["id"] if not pack.is_empty() else "mochila_escolar")
-	(carga[0] as TextureRect).self_modulate = Color.WHITE if not pack.is_empty() else Color(1, 1, 1, 0.3)
+	(carga[0] as TextureRect).self_modulate = Color.WHITE if not pack.is_empty() else Color(1.00, 1.00, 1.00, 0.3)
 	(carga[1] as Label).text = "%.1f KG" % d.carried_weight()
 	(carga[1] as Label).add_theme_color_override("font_color", UITheme.DANGER if d.load_ratio() > 1.0 else UITheme.MUTED)
 	var arma: Array = slots["arma"]
 	var w := d.weapon_inst()
 	(arma[0] as TextureRect).texture = GenArt.icon(w["id"]) if not w.is_empty() else UITheme.icon("arma")
-	(arma[0] as TextureRect).self_modulate = Color.WHITE if not w.is_empty() else Color(1, 1, 1, 0.18)
+	(arma[0] as TextureRect).self_modulate = Color.WHITE if not w.is_empty() else Color(1.00, 1.00, 1.00, 0.18)
 	(arma[1] as Label).text = "ARMA" if w.is_empty() else "%d%%" % int(float(w.get("dur", 100.0)))
 	if w.has("mun"):
 		(arma[1] as Label).text = "%d/%d" % [int(float(w["mun"])), int(Items.def(w["id"])["pente"])]
@@ -1584,15 +1584,15 @@ func _update_equipment(d: SurvivorData) -> void:
 		UITheme.DANGER if not w.is_empty() and float(w.get("dur", 100.0)) < 25.0 else UITheme.MUTED)
 	var mask: Array = slots["filtro"]
 	(mask[0] as TextureRect).texture = GenArt.icon("mascara")
-	(mask[0] as TextureRect).self_modulate = Color.WHITE if d.has_mask() else Color(1, 1, 1, 0.18)
+	(mask[0] as TextureRect).self_modulate = Color.WHITE if d.has_mask() else Color(1.00, 1.00, 1.00, 0.18)
 	(mask[1] as Label).text = ("VED. %d%%" % int(d.mask_seal())) if d.has_mask() else "SEM MÁSCARA"
 	(mask[1] as Label).add_theme_color_override("font_color",
 		UITheme.DANGER if d.has_mask() and d.mask_seal() < 30.0 else UITheme.MUTED)
 	var bat: Array = slots["bateria"]
 	(bat[0] as TextureRect).texture = GenArt.icon("bateria")
 	var has_impl := not d.implants.is_empty()
-	(bat[0] as TextureRect).self_modulate = Color.WHITE if has_impl else Color(1, 1, 1, 0.18)
-	(bat[1] as Label).text = ("%d%%" % int(d.battery)) if has_impl else "SEM IMPL."
+	(bat[0] as TextureRect).self_modulate = Color.WHITE if has_impl else Color(1.00, 1.00, 1.00, 0.18)
+	(bat[1] as Label).text = ("%d%%" % int(d.battery)) if has_impl else "SEM PRÓT."
 	(bat[1] as Label).add_theme_color_override("font_color", UITheme.DANGER if has_impl and d.battery < 15.0 else UITheme.MUTED)
 
 
@@ -1614,9 +1614,9 @@ func _update_effects(d: SurvivorData, spore: float) -> void:
 	if d.pain_t > 0.0:
 		list.append(["antibiotico", "ANALGÉSICO %ds" % int(d.pain_t), OK_COLOR])
 	if d.overloaded():
-		list.append(["cerebro", "SOBRECARGA SINÁPTICA", UITheme.MAGENTA])
+		list.append(["cerebro", "COLAPSO NERVOSO", UITheme.MAGENTA])
 	elif d.synaptic > 60.0:
-		list.append(["cerebro", "ESTRESSE NEURAL %d%%" % int(d.synaptic), UITheme.MAGENTA])
+		list.append(["cerebro", "TENSÃO NERVOSA %d%%" % int(d.synaptic), UITheme.MAGENTA])
 	if d.pathogen > 75.0:
 		list.append(["contaminacao", "CARGA CRÍTICA", UITheme.DANGER])
 	var bleeding := false
@@ -1972,7 +1972,7 @@ func _win_station(p: Player, st: Structure) -> void:
 
 ## Mesa de reparos: tudo o que está gasto, no inventário e vestido.
 func _win_repairs(box: VBoxContainer, d: SurvivorData) -> void:
-	_head(box, "Consertos (fita adesiva x%d · sucata x%d)" % [d.count("fita"), d.count("sucata")])
+	_head(box, "Consertos (fita de lona x%d · sucata x%d)" % [d.count("fita"), d.count("sucata")])
 	var any := false
 	var lists: Array = []
 	for c: String in d.bags:
@@ -2160,9 +2160,9 @@ func map_hovered(ch: Vector2i) -> void:
 		if cd["items"].is_empty():
 			empty += 1
 	if not counts.is_empty():
-		var kinds := {"comum": "comida, água e materiais", "medico": "remédios e curativos", "tecnico": "peças, baterias, ferramentas e implantes"}
+		var kinds := {"comum": "comida, água e materiais", "medico": "remédios e curativos", "tecnico": "peças, células galvânicas, ferramentas e próteses"}
 		_lbl(map_info, "Lugares com itens: %d (%d já vazios)" % [counts.values().reduce(func(a, b): return a + b, 0), empty], UITheme.TEXT)
-		var names := {"comum": "comuns", "medico": "médicos", "tecnico": "técnicos", "geladeira": "geladeiras", "cozinha": "fogões",
+		var names := {"comum": "comuns", "medico": "médicos", "tecnico": "técnicos", "geladeira": "caixas de gelo", "cozinha": "fogões",
 			"pia": "pias", "armario": "armários", "estante": "estantes e arquivos", "prateleira": "prateleiras", "balcao": "balcões", "tambores": "tambores"}
 		for t in counts:
 			_lbl(map_info, "• %d %s%s" % [int(counts[t]), names.get(t, t), (": " + kinds[t]) if kinds.has(t) else ""],
@@ -2586,7 +2586,7 @@ func _limb_detail(v: VBoxContainer, d: SurvivorData, limb: Dictionary, l: String
 func _patient_surgery(box: VBoxContainer, d: SurvivorData, target: int) -> void:
 	var info: Dictionary = patient_info[target]
 	var imps: Dictionary = info["implants"]
-	_head(box, "Cirurgia no paciente (núcleo neural %d/%d)" % [int(info["general"]), int(info["cap"])])
+	_head(box, "Cirurgia no paciente (regulador %d/%d)" % [int(info["general"]), int(info["cap"])])
 	for slot: String in imps:
 		var row := _row(box)
 		row.add_child(_item_icon(imps[slot]["id"], 40))
@@ -2633,7 +2633,7 @@ func _tab_skills(d: SurvivorData) -> void:
 	for k: String in DB.BUILDS:
 		var req: Dictionary = DB.BUILDS[k]["req"]
 		_lbl(box, "%s: %s" % [DB.BUILDS[k]["nome"], DB.req_text(req)], OK_COLOR if d.meets(req) else NO_COLOR)
-	_head(box, "Parede de conhecimento: implantes (Medicina + Cibernética)")
+	_head(box, "Parede de conhecimento: próteses (Medicina + Próteses)")
 	for k: String in DB.IMPLANTS:
 		var req2: Dictionary = DB.IMPLANTS[k]["req"]
 		_lbl(box, "%s: %s" % [DB.item_name(k), DB.req_text(req2)], OK_COLOR if d.meets(req2) else NO_COLOR)
@@ -2646,7 +2646,7 @@ func _build_creation() -> void:
 	creation_root.visible = false
 	ui.add_child(creation_root)
 	var dim := ColorRect.new()
-	dim.color = Color(0.01, 0.02, 0.03, 0.9)
+	dim.color = Color(0.03, 0.02, 0.01, 0.9)
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	creation_root.add_child(dim)
 	var center := CenterContainer.new()
@@ -2871,7 +2871,7 @@ func _win_build(p: Player) -> void:
 		p.build_kind = ""
 		close_window())
 	var hint := {"fundacao": "Pisos ocupam a célula; paredes, janelas e portas ficam nas BORDAS (aponte para o lado do quadrado).",
-		"utilidades": "Objetos de base. Geradores, eólicos e baterias a até %d tiles formam uma rede que alimenta o que estiver perto." % int(World.GRID_LINK),
+		"utilidades": "Objetos de base. Dínamos, cata-ventos e acumuladores a até %d tiles formam uma rede elétrica (ainda experimental) que alimenta o que estiver perto." % int(World.GRID_LINK),
 		"decoracao": "Móveis e iluminação. Luzes gastam energia da rede e só acendem no escuro."}
 	_lbl(box, String(hint.get(build_tab, "")) + " Materiais em baús e sacos a até 2 tiles também contam. Botão direito/Esc cancela.", UITheme.MUTED)
 	var info := _power_summary(p)
@@ -2962,7 +2962,7 @@ func _power_summary(p: Player) -> String:
 	var gr := best.grid
 	var t := "REDE PRÓXIMA: produção %d W · consumo %d W" % [int(gr.get("gp", 0)), int(gr.get("gc", 0))]
 	if int(gr.get("gb", -1)) >= 0:
-		t += " · baterias %d%%" % int(gr["gb"])
+		t += " · acumuladores %d%%" % int(gr["gb"])
 	return t
 
 
@@ -2974,7 +2974,7 @@ func _tab_implants(d: SurvivorData) -> void:
 	var info := _vbox(4)
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(info)
-	info.add_child(_label("BATERIA %d%% · ESTRESSE TÉRMICO %d%% · KIT CIRÚRGICO x%d · BATERIAS x%d" % [int(d.battery), int(d.heat), d.count("kit_cirurgico"), d.count("bateria")], S, UITheme.TEXT))
+	info.add_child(_label("CÉLULA %d%% · SUPERAQUECIMENTO %d%% · KIT CIRÚRGICO x%d · CÉLULAS x%d" % [int(d.battery), int(d.heat), d.count("kit_cirurgico"), d.count("bateria")], S, UITheme.TEXT))
 	var bars_row := _hbox(14)
 	info.add_child(bars_row)
 	_bar(bars_row, d.battery, 100.0, UITheme.ACCENT, 260, 14)
@@ -2988,10 +2988,10 @@ func _tab_implants(d: SurvivorData) -> void:
 	nrow.add_child(ninfo)
 	var cap := d.neural_capacity()
 	var over := d.general_count() > cap
-	ninfo.add_child(_label("NÚCLEO NEURAL: %d / %d IMPLANTES GERAIS · ESTRESSE SINÁPTICO %d%%%s" % [d.general_count(), cap, int(d.synaptic),
-		("  ·  SOBRECARGA!" if d.overloaded() else "")], S, UITheme.DANGER if d.overloaded() else UITheme.TEXT))
+	ninfo.add_child(_label("REGULADOR CRANIANO: %d / %d PRÓTESES GERAIS · TENSÃO NERVOSA %d%%%s" % [d.general_count(), cap, int(d.synaptic),
+		("  ·  COLAPSO!" if d.overloaded() else "")], S, UITheme.DANGER if d.overloaded() else UITheme.TEXT))
 	_bar(ninfo, d.synaptic, 100.0, UITheme.DANGER if over else UITheme.MAGENTA, 540, 20)
-	_lbl(box, "Sem processador neural o corpo aguenta 1 implante geral; mais que isso é rejeitado na cirurgia. Se a bateria acabar ou o processador falhar com vários implantes, vem a sobrecarga: espasmos, controle atrasado, HUD distorcido e nenhuma ação complexa.", UITheme.MUTED)
+	_lbl(box, "Sem regulador craniano o corpo aguenta 1 prótese geral; mais que isso é rejeitado na cirurgia. Se a célula galvânica acabar ou o regulador falhar com várias próteses, vem o colapso nervoso: espasmos, controle atrasado, visão turva e nenhuma ação complexa.", UITheme.MUTED)
 	for slot: String in DB.IMPLANT_SLOTS:
 		_head(box, DB.IMPLANT_SLOTS[slot])
 		if d.implants.has(slot):
@@ -3018,13 +3018,13 @@ func _tab_implants(d: SurvivorData) -> void:
 					var reject := slot != "cerebro" and d.general_count() >= cap
 					var txt := "%s (exige %s)\n%s" % [DB.item_name(id), DB.req_text(def2["req"]), def2["efeito"]]
 					if reject:
-						txt += "\nREJEIÇÃO: seu cérebro já está no limite (%d/%d). Instale um processador neural." % [d.general_count(), cap]
+						txt += "\nREJEIÇÃO: seu corpo já está no limite (%d/%d). Instale um regulador craniano." % [d.general_count(), cap]
 					elif not meets:
 						txt += "\nRISCO: falha crítica ou morte na cirurgia!"
 					_lbl(row2, txt, UITheme.TEXT if meets and not reject else UITheme.DANGER)
 					_btn(row2, "Instalar", _act(func() -> void: _player().act("install", [id])), d.count("kit_cirurgico") > 0)
 			if not found:
-				_lbl(box, "Vazio. Encontre um implante e um kit cirúrgico.", UITheme.MUTED)
+				_lbl(box, "Vazio. Encontre uma prótese e um kit cirúrgico.", UITheme.MUTED)
 
 
 func _tab_vehicle(p: Player) -> void:
@@ -3061,7 +3061,7 @@ func _tab_vehicle(p: Player) -> void:
 	if v.locked:
 		probs.append("Trancado: precisa de ligação direta (Mecânica 2).")
 	if v.fuel <= 0.0:
-		probs.append("Sem energia: abasteça com %s." % ("um galão de combustível" if String(def["energia"]) == "combustivel" else "baterias"))
+		probs.append("Sem energia: abasteça com %s." % ("um galão de querosene" if String(def["energia"]) == "combustivel" else "células galvânicas"))
 	elif v.fuel < 15.0:
 		probs.append("Energia baixa (%d%%)." % int(v.fuel))
 	if v.cond <= 0.0:
@@ -3090,13 +3090,13 @@ func _tab_vehicle(p: Player) -> void:
 	_btn(row, "Porta-malas", func() -> void:
 		close_window()
 		open_loot(v))
-	var energy := "galão de combustível" if String(def["energia"]) == "combustivel" else "bateria"
+	var energy := "galão de querosene" if String(def["energia"]) == "combustivel" else "célula galvânica"
 	var row2 := _row(box)
 	_btn(row2, "Abastecer (%s)" % energy, _win_act(func() -> void: _player().act("vehicle", [key, "refuel"])),
 		d.count("combustivel" if energy.begins_with("galão") else "bateria") > 0)
 	_btn(row2, "Ligação direta", _win_act(func() -> void: _player().act("vehicle", [key, "hotwire"])), v.locked)
 	_btn(row2, "Consertar (1 metal + 2 sucatas)", _win_act(func() -> void: _player().act("vehicle", [key, "repair"])), v.cond < 99.0)
-	_lbl(box, "Veículos abandonados ficam trancados: a ligação direta exige Mecânica 2 (pode dar choque). A picape gasta combustível e leva até 4 pessoas; a moto elétrica é rápida e silenciosa, mas leva só o piloto e gasta baterias. Atropelar infectados desgasta o veículo; o motor faz barulho.", UITheme.MUTED)
+	_lbl(box, "Veículos abandonados ficam trancados: a ligação direta exige Mecânica 2 (pode dar choque). O locomóvel blindado queima querosene na caldeira e leva até 4 pessoas; o triciclo elétrico é um protótipo rápido e silencioso, mas leva só o piloto e gasta células galvânicas. Atropelar infectados desgasta o veículo; o motor faz barulho.", UITheme.MUTED)
 
 
 ## Painel da vila: pedido de socorro, comerciante e doações.

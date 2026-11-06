@@ -48,7 +48,7 @@ novo neste padrão: objetos de cenário e chão. Os prédios agora são explorá
    - base em índigo e ardósia dessaturados;
    - ferrugem e terracota como segunda cor;
    - verdes apagados (fungo, oliva) para vegetação;
-   - cores saturadas (neon, luzes acesas) só em pontos de luz, em menos de 5% do sprite.
+   - cores saturadas (lâmpadas acesas, brasa) só em pontos de luz, em menos de 5% do sprite.
 8. **Escala.**
    - Uma pessoa de 1,8 m tem cerca de 42 px.
    - Um andar mede cerca de 59 px (1,2 unidade).

@@ -38,5 +38,5 @@ func _draw() -> void:
 	# texto na fonte pixelada, em meia escala para ficar no tamanho nativo da grade
 	draw_set_transform(Vector2(8, 66), 0.0, Vector2(0.5, 0.5))
 	draw_string(UITheme.font(), Vector2.ZERO, "SCAN ATIVO  ESPOROS %.2f" % spore,
-		HORIZONTAL_ALIGNMENT_LEFT, -1, UITheme.FONT_S, Color(0.32, 0.9, 1.0, 0.95))
+		HORIZONTAL_ALIGNMENT_LEFT, -1, UITheme.FONT_S, Color(0.87, 0.70, 0.45, 0.95))
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)

@@ -23,7 +23,7 @@ Antes de iniciarmos a lógica, preciso que você me oriente a:
 ---
 
 ## 2. Premissa Narrativa e Ambientação
-* **Cenário:** Futuro distópico cyberpunk com a atmosfera corrompida por esporos fúngicos tóxicos.
+* **Cenário:** Mundo **steampunk** (era do vapor, latão, engrenagens e fuligem) com a atmosfera corrompida por esporos fúngicos tóxicos. A **eletricidade existe, mas é rudimentar e experimental**: lâmpadas incandescentes, lanternas a pilha seca, dínamos movidos a vapor ou a vento e células galvânicas. Glossário completo do tema na seção "Tema steampunk (fase 23)".
 * **A Infecção Latente ("Carga Patogênica"):** Todos carregam o patógeno (0% a 100%). Gerenciada por máscaras de gás, troca de filtros, supressores e purificadores.
 * **O Limite do Mundo ("O Mar de Esporos"):** Raiz procedural com raio de borda vasto e expandido. Perto do perímetro extremo, a concentração de esporos torna-se letal instantaneamente, destruindo filtros e gerando hordas infinitas.
 
@@ -39,14 +39,14 @@ Antes de iniciarmos a lógica, preciso que você me oriente a:
 
 ---
 
-## 4. O Sistema de Cibernética e o Implante Cerebral
-* **O Dilema dos Implantes:** Implantes melhoram capacidades (filtros pulmonares, visão térmica, força mecânica), mas consomem energia de baterias e geram estresse térmico/neurológico, acelerando a infecção nas áreas integradas.
-* **A Regra de Ouro: O Núcleo Neural (Implante Cerebral):**
-  * **Capacidade Base:** Sem nenhum implante cerebral avançado, o corpo humano suporta **apenas 1 implante geral** (ex: um par de braços reforçados ou um filtro pulmonar). Tentar instalar mais sem suporte neural causa rejeição imediata.
-  * **O Implante Cerebral (Processador Neural):** Módulo de expansão que aumenta o limite de slots de implantes gerais que o personagem pode carregar simultaneamente.
-  * **Sobrecarga Sináptica (O Limite da Mente):** 
-    * Se o jogador ultrapassar o limite atual suportado pelo seu cérebro (por falha de hardware, bateria esgotada ou remoção do processador), o sistema entra em colapso (*Brain Overload*).
-    * **Efeitos da Sobrecarga:** Espasmos musculares, perda de controle direcional (falhas/atrasos no input de movimento), distorções de HUD e incapacidade temporária de mirar ou realizar ações complexas.
+## 4. O Sistema de Próteses e o Regulador Craniano
+* **O Dilema das Próteses:** Próteses mecânicas (fole pulmonar de latão, monóculo analítico, braço de pistão, pernas pneumáticas, placas subcutâneas) melhoram capacidades, mas gastam a carga de células galvânicas, superaquecem e geram tensão nervosa.
+* **A Regra de Ouro: O Regulador Craniano:**
+  * **Capacidade Base:** Sem regulador, o corpo suporta **apenas 1 prótese geral**. Instalar mais causa rejeição imediata.
+  * **O Regulador Craniano (Mk I e Mk II):** Mecanismo de engrenagens no crânio que aumenta o limite de próteses gerais.
+  * **Colapso Nervoso (O Limite do Corpo):**
+    * Se o jogador ultrapassar o limite (regulador danificado, célula esgotada ou regulador removido), vem o colapso nervoso.
+    * **Efeitos:** espasmos musculares, controle atrasado e desviado, visão turva e incapacidade temporária de mirar ou realizar ações complexas.
 
 ---
 
@@ -75,12 +75,12 @@ Antes de iniciarmos a lógica, preciso que você me oriente a:
   * *Furtividade:* Reduz raio sonoro de passos e aumenta camuflagem em áreas escuras.
 * **B. Engenharia, Técnica e Ofício (Crafting):**
   * *Mecânica:* Reparo e customização de veículos, capacidade de fazer *hotwire*.
-  * *Eletrônica e Automação:* Circuitos, armadilhas, geradores e painéis.
+  * *Eletricidade:* Dínamos, fiação de cobre, lâmpadas, torres de engrenagens e células galvânicas (tecnologia ainda experimental).
   * *Carpintaria e Construção:* Paredes, barricadas, pisos e estruturas de base.
   * *Metalurgia e Soldagem:* Blindagens pesadas em metal e portões industriais.
 * **C. Suporte, Ciência e Biologia:**
   * *Medicina e Primeiros Socorros:* Eficácia de bandagens, talas e cirurgias de campo.
-  * *Cibernética:* Reduz estresse sináptico e rejeição de implantes corporais.
+  * *Próteses:* Instalar e manter próteses mecânicas; reduz a tensão nervosa e a rejeição.
   * *Agricultura e Botânica:* Cultivo de alimentos e identificação de plantas.
   * *Culinária:* Reduz intoxicação e garante bônus temporários de estamina.
 
@@ -89,7 +89,7 @@ Antes de iniciarmos a lógica, preciso que você me oriente a:
 ## 7. O Sistema de Morte Definitiva ("Legado") e Co-op
 * **Perma-death Real:** Ao morrer, o sobrevivente perece e o jogador renasce com um novo personagem em uma zona segura.
 * **O Destino do Ex-Personagem:**
-  * *Morte por Infecção (100%):* O corpo reanima como um **Infectado de Elite**, mantendo todo o loot e os implantes cibernéticos antigos, rondando a área para atormentar a equipe.
+  * *Morte por Infecção (100%):* O corpo reanima como um **Infectado de Elite**, mantendo todo o loot e as próteses antigas, rondando a área para atormentar a equipe.
   * *Morte Física:* Vira um cadáver estático que atrai hordas, servindo como um baú recuperável se a equipe conseguir limpar a área.
 
 ---
@@ -109,8 +109,8 @@ Antes de iniciarmos a lógica, preciso que você me oriente a:
 
 - **Modelo de rede:** um jogador hospeda e é a autoridade (servidor ENet, porta 7777). Os outros entram pelo IP. O jogo solo usa o mesmo código, numa sessão local sem rede.
 - **Jogadores por sessão:** de 2 a 4.
-- **Veículos:** entram no escopo (habilidade Mecânica: reparo e ligação direta). Modelos escolhidos na fase 8: picape blindada e moto elétrica (detalhes abaixo).
-- **Matemática/Lógica:** sai da árvore de habilidades. Os requisitos de construção que a usavam passam para Eletrônica, Carpintaria e Metalurgia (fase 3).
+- **Veículos:** entram no escopo (habilidade Mecânica: reparo e ligação direta). Modelos escolhidos na fase 8: locomóvel blindado a vapor e triciclo elétrico experimental (detalhes abaixo).
+- **Matemática/Lógica:** sai da árvore de habilidades. Os requisitos de construção que a usavam passam para Eletricidade, Carpintaria e Metalurgia (fase 3).
 
 ### Inventário (fase 2)
 
@@ -123,11 +123,11 @@ Antes de iniciarmos a lógica, preciso que você me oriente a:
 ### Personagem (fase 3)
 
 - **Criação por pontos (20):** Força e Resistência (2 a 9, base 5, 2 pontos por passo), habilidades iniciais até o nível 3 (2/5/9 pontos) e traços. Qualidades: Pulmões de aço, Imunidade forte, Metabolismo lento, Atleta, Organizado, Mãos firmes. Defeitos (devolvem até 10): Pulmão fraco, Glutão, Asmático, Sangue fino, Desajeitado, Lento, Barulhento. Há cinco modelos prontos (Equilibrado, Médica de campo, Engenheiro, Batedora, Brutamontes). A ficha é feita ao entrar na sessão e a cada morte; o anfitrião valida.
-- **12 habilidades:** Luta corpo a corpo, Pontaria, Atletismo, Furtividade, Mecânica, Eletrônica, Carpintaria, Metalurgia, Medicina, Cibernética, Agricultura, Culinária. Construções: madeira com Carpintaria; gerador, purificador e torre com Eletrônica + Metalurgia; selagem com as três. Implantes pedem Medicina + Cibernética. Saves antigos: Engenharia vira Eletrônica e Lógica vira Metalurgia.
+- **12 habilidades:** Luta corpo a corpo, Pontaria, Atletismo, Furtividade, Mecânica, Eletricidade, Carpintaria, Metalurgia, Medicina, Próteses, Agricultura, Culinária. Construções: madeira com Carpintaria; gerador, purificador e torre com Eletrônica + Metalurgia; selagem com as três. Implantes pedem Medicina + Cibernética. Saves antigos: Engenharia vira Eletrônica e Lógica vira Metalurgia.
 - **Estamina:** Shift corre (+55% de velocidade) gastando estamina; cada golpe também gasta (armas pesadas mais; Luta reduz). Sem estamina não corre e o golpe enfraquece. Fome, sede, sobrecarga e infecção alta atrasam a recuperação.
 - **Peso:** carga confortável = 16 kg + 1,2 por ponto de Força acima de 5 + 0,6 por nível de Atletismo.
 
-### Cibernética neural (fase 4)
+### Próteses e regulador craniano (fase 4)
 
 - **Núcleo neural:** sem processador o corpo aguenta 1 implante geral. Processador neural Mk1 (até 2) e Mk2 (até 4) ocupam o encaixe do cérebro e gastam bateria. Instalar além do limite causa rejeição imediata: o implante se perde, o membro é ferido e o estresse sináptico vai a 100%.
 - **Estresse sináptico (0-100%):** cada implante ativo soma estresse (Cibernética e o processador reduzem; superaquecimento aumenta).
@@ -302,7 +302,7 @@ Antes de iniciarmos a lógica, preciso que você me oriente a:
 - **Modo construção [B]:** faixa única embaixo com as abas Fundação/Utilidades/Decoração por cima; escolher um item não fecha nada; moldura amarela na tela; a câmera desce para o personagem ficar no alto; a HUD normal some. B/Esc saem; X demolição.
 - **Mundo maior:** raio de 150 tiles (antes 64) e 16 vilas. A geração planeja tudo em dados a partir da seed (igual em todos os peers); só os chunks de 16×16 células perto dos jogadores viram nós e tiles. O anfitrião carrega ao redor de todos os jogadores; cada cliente, ao redor de si. Caixas, construções, baús e pisos ficam em dados e valem com o chunk carregado ou não.
 - **Vilas vivas:** prosperidade (nível 0 a 3) aumenta a produção, o número de guardas e as ofertas do comerciante. NPCs (comerciante, guardas, moradores) aparecem quando alguém se aproxima; guardas atacam infectados perto da vila. [E] num NPC abre o painel da vila.
-- **Pedidos de socorro:** a vila pede comida, remédios, materiais ou peças eletrônicas, ou que se eliminem infectados por perto, com prazo de 6 minutos (aviso para todos e lista na aba Mundo). Atender sobe prosperidade, reputação e população e dá recompensa a quem entregou. Ignorar faz a vila perder moradores e acumular infestação, até cair.
+- **Pedidos de socorro:** a vila pede comida, remédios, materiais ou peças elétricas, ou que se eliminem infectados por perto, com prazo de 6 minutos (aviso para todos e lista na aba Mundo). Atender sobe prosperidade, reputação e população e dá recompensa a quem entregou. Ignorar faz a vila perder moradores e acumular infestação, até cair.
 - **Reputação:** doações e pedidos atendidos dão reputação da equipe com aquela vila; o comerciante troca itens da especialidade da vila por reputação.
 - **Zonas mortas:** vila que cai fica sem NPCs, cercada de infectados e com esporos densos ao redor. Limpar a área por 30 s liberta a vila.
 - Saves de antes desta fase: o mapa mudou, então só os sobreviventes (de volta ao abrigo), o legado e o tempo de jogo são aproveitados.
@@ -312,13 +312,13 @@ Antes de iniciarmos a lógica, preciso que você me oriente a:
 - **Agricultura:** canteiro (3 madeiras + 4 pregos, martelo). [E] com enxada e sementes planta; regar (regador com 4 regas ou uma garrafa de água, limpa ou suja) dá ~150 s de água; a planta só cresce regada e com ar limpo (esporos < 0,35, ou dentro de uma selagem de ar); em esporos densos (≥ 0,6) ela morre. Batata (5 min), milho (6 min) e tomate (4 min). Agricultura acelera o crescimento e aumenta a colheita e a chance de recuperar sementes. O crescimento é calculado pelo relógio do mundo, então continua mesmo com o chunk descarregado.
 - **Culinária:** fogareiro (2 metais + 3 sucatas) e panela. Receitas: sopa de batata, ensopado (feijão + batata + tomate), milho assado e ferver água suja (vira água limpa). Comida cozida dá "bem alimentado" por 3 min (estamina recupera 50% mais rápido). Sem prática, a comida pode queimar; Culinária também reduz a intoxicação de comida estragada.
 - **Veículos (escolhidos):**
-  - *Picape blindada:* 2,4x a velocidade a pé, 4 lugares (motorista + 3), porta-malas de 60 L, gasta combustível (galões), barulhenta (520 px), atropela forte.
-  - *Moto elétrica:* 3,2x, só o piloto, porta-malas de 8 L, gasta baterias, quase silenciosa (240 px), atropela fraco.
+  - *Locomóvel blindado:* carro a vapor; 2,4x a velocidade a pé, 4 lugares (motorista + 3), porta-malas de 60 L, queima querosene (galões) na caldeira, barulhento (520 px), atropela forte.
+  - *Triciclo elétrico:* protótipo experimental; 3,2x, só o piloto, porta-malas de 8 L, gasta células galvânicas, quase silencioso (240 px), atropela fraco.
   - Ficam abandonados na beira das estradas, trancados, com pouca energia e desgastados. Ligação direta exige Mecânica 2 (pode dar choque); consertar pede martelo, chave de fenda, 1 metal e 2 sucatas. Atropelar desgasta; abaixo de 30% de estado o veículo perde velocidade e a 0% não anda. Quem dirige controla o movimento (como a pé); passageiros acompanham. O porta-malas abre na janela de saque e os veículos vão para o save.
 - **Construção estilo The Sims:** o piso ocupa a célula do losango; paredes, meia parede, parede com janela, porta e portão ficam nas **bordas** da célula (aponte o mouse para o lado do quadrado). As antigas paredes e portas em bloco saíram do jogo. A janela de construção [B] tem 3 abas:
   - *Fundação:* pisos (metal, madeira, concreto), paredes, janelas, portas e portões.
-  - *Utilidades:* bancada de fabricação (receitas técnicas exigem estar perto dela), mesa de reparos, fogareiro, gerador a combustão, gerador eólico, banco de baterias, purificador, torre, selagem de ar, coletor de chuva, canteiro, baú e cama.
-  - *Decoração:* luminária de chão, poste de luz, letreiro neon, mesa, cadeira, sofá, tapete, vaso e estante.
+  - *Utilidades:* bancada de fabricação (receitas técnicas exigem estar perto dela), mesa de reparos, fogareiro, dínamo a vapor, cata-vento com dínamo, banco de acumuladores, purificador, torre, selagem de ar, coletor de chuva, canteiro, baú e cama.
+  - *Decoração:* abajur de lâmpada, lampião elétrico, letreiro de lâmpadas, mesa, cadeira, sofá, tapete, vaso e estante.
 - **Energia por produção e consumo:** construções de energia a até 10 tiles umas das outras formam uma rede. O eólico gera 22 W por módulo do mastro (1 a 5; [E] sobe um módulo por 2 metais + 2 sucatas) vezes o vento; prédios e construções por perto atrapalham o vento. O gerador a combustão (100 W) só queima o combustível que falta na rede. Os bancos de baterias guardam a sobra e cobrem a falta. Quando falta energia, a prioridade é selagem, purificador, torre e depois as luzes. As luzes só gastam à noite.
 - **Mesa de reparos:** armas de fogo (fita + 1 sucata), mochilas e coldres só se consertam nela. Nela, todo conserto rende +45% (em vez de +30% com fita em qualquer lugar).
 - **Dia, noite e clima:** um dia dura 24 minutos (1 hora do jogo = 1 minuto). À noite o mundo escurece; luzes acesas, a lanterna e os postes iluminam. No escuro, os infectados enxergam até 40% mais perto, exceto quem está com lanterna ou sob luz. Os climas são:
@@ -328,6 +328,51 @@ Antes de iniciarmos a lógica, preciso que você me oriente a:
   - *Névoa de esporos:* +0,12 de esporos e visão a 60%.
   O clima muda a cada 3 a 7 minutos. O HUD mostra a hora e o clima.
 
+
+## Tema steampunk (fase 23)
+
+O jogo trocou o tema cyberpunk pelo **steampunk**. As mecânicas não mudaram; mudaram nomes,
+textos, cores da interface e luzes. A eletricidade continua existindo, mas é rudimentar e
+experimental (lâmpadas incandescentes, lanternas, dínamos, células galvânicas). Os ids
+internos do código continuam os antigos (por exemplo `implante_braco`, `eletronica`,
+`cibernetica`, `bateria`), para não quebrar saves nem testes.
+
+| Antes (cyberpunk) | Agora (steampunk) | id interno |
+|---|---|---|
+| Implantes, aba Implantes | Próteses, aba Próteses | `implante_*`, `IMPLANTS` |
+| Processador neural Mk1/Mk2 | Regulador craniano Mk I/Mk II | `proc_neural_mk1/2` |
+| Filtro pulmonar mecânico | Fole pulmonar de latão | `implante_pulmao` |
+| HUD de escaneamento | Monóculo analítico | `implante_hud` |
+| Braço reforçado | Braço de pistão | `implante_braco` |
+| Pernas hidráulicas | Pernas pneumáticas | `implante_pernas` |
+| Malha subdérmica | Placas subcutâneas | `implante_derme` |
+| Estresse sináptico / sobrecarga | Tensão nervosa / colapso nervoso | `synaptic`, `overloaded()` |
+| Bateria (implantes, moto) | Célula galvânica | `bateria` |
+| Banco de baterias | Banco de acumuladores | `bateria_casa` |
+| Galão de combustível | Galão de querosene | `combustivel` |
+| Gerador a combustão | Dínamo a vapor (caldeira) | `gerador` |
+| Gerador eólico | Cata-vento com dínamo | `eolico` |
+| Purificador industrial | Exaustor purificador | `purificador` |
+| Torre automatizada | Torre de engrenagens | `torre` |
+| Selagem de ar | Vedação pneumática | `vedacao` |
+| Luminária, poste de luz, letreiro neon | Abajur de lâmpada, lampião elétrico, letreiro de lâmpadas | `luminaria`, `poste`, `letreiro` |
+| Picape blindada / moto elétrica | Locomóvel blindado / triciclo elétrico | `picape`, `moto` |
+| Eletrônica / Cibernética (habilidades) | Eletricidade / Próteses | `eletronica`, `cibernetica` |
+| Fio elétrico, sucata eletrônica | Fio de cobre, peças elétricas | `fios`, `sucata_eletronica` |
+| Pistola 9 mm, munição 9 mm | Pistola de carregador, balas de pistola | `pistola`, `municao_9mm` |
+| Espingarda/cartucho calibre 12 | Espingarda de cano duplo, cartucho de chumbo | `espingarda`, `cartucho_12` |
+| Conjunto tático | Conjunto do regimento | `tatico` |
+| Roupas modernas (boné, tênis, jeans, moletom...) | Boina, sapatos de couro, calça de brim, suéter de lã... | mesmos ids |
+| Geladeira | Caixa de gelo | `geladeira` |
+| Terminal de campo | Diário de campo | — |
+
+**Interface:** a paleta (`scripts/ui/ui_theme.gd` e `tools/gen_ui.py`) virou madeira escura,
+latão, cobre e papel envelhecido; as linhas de varredura (efeito de monitor) foram desligadas.
+As cores com sentido próprio continuam (vida vermelha, sede azul, contaminação verde).
+**Luzes:** postes, letreiros e prédios usam tons quentes de lâmpada incandescente.
+**Arte:** a arte do mundo ainda é a provisória (com traços cyberpunk, como letreiros e TVs);
+ela será refeita no tema novo com o PixelLab.
+
 ## Estado da implementação
 
 | Fase | Conteúdo | Situação |
@@ -335,11 +380,11 @@ Antes de iniciarmos a lógica, preciso que você me oriente a:
 | 1 | Base de rede: sessão (hospedar, entrar, solo), personagens sincronizados, infectados, construção, saque, vilas, morte e legado com autoridade no anfitrião, save por jogador | **feito** |
 | 2 | Inventário por peso e volume (bolsos, mochilas, coldre, sobrecarga), itens com estado próprio (durabilidade, validade, cargas), janela de saque, baú, abridor de latas | **feito** |
 | 3 | Criação por pontos (atributos, habilidades, traços), 12 habilidades, estamina e corrida | **feito** |
-| 4 | Cibernética neural (processador, limite de implantes, rejeição, estresse e sobrecarga sináptica, remoção de implantes) | **feito** |
+| 4 | Próteses (regulador craniano, limite de próteses, rejeição, tensão nervosa e colapso, remoção) | **feito** |
 | 5 | Ferramentas e materiais, lanterna, cantil, médicos novos, armas de fogo com munição, som e furtividade | **feito** |
 | 6 | Ações com tempo (barra, interrupção por movimento ou dano) e medicina cooperativa (curativos e cirurgias em aliados) | **feito** |
 | 7 | Mundo em chunks (raio 150), vilas vivas com NPCs, prosperidade, reputação, comércio, pedidos de socorro e zonas mortas | **feito** |
-| 8 | Agricultura (canteiro, sementes, rega, colheita), culinária (fogareiro, receitas, água fervida) e veículos (picape blindada e moto elétrica) | **feito** |
+| 8 | Agricultura (canteiro, sementes, rega, colheita), culinária (fogareiro, receitas, água fervida) e veículos (locomóvel blindado e triciclo elétrico) | **feito** |
 | 10 | Padrão visual único (STYLE.md), arte própria no lugar do Town Sampler e do Neon District | **feito** |
 | 11 | Cidades pequenas e aldeias (vivas, abandonadas, tomadas por esporos), prédios exploráveis com corte estilo The Sims | **feito** |
 | 12 | Ferimentos com chance de sangrar (uma ferida por vez), torções e fraturas com tala, quedas, roupas e armaduras com conjuntos, barra rápida de escolher e clicar | **feito** |
@@ -353,4 +398,5 @@ Antes de iniciarmos a lógica, preciso que você me oriente a:
 | 20 | Sons provisórios com tabela central | **feito** |
 | 21 | Menu pequeno do [E] para tudo no mundo, tempos das ações, comum lento que agarra | **feito** |
 | 22 | Interior escondido de fora (espiar pela janela volta), infectados em casas abandonadas, vilas com cerca incompleta e mais guardas, espetos em volta da vila que ferem e deixam lento | **feito** |
+| 23 | Tema steampunk: nomes, textos, próteses no lugar de implantes, eletricidade rudimentar, paleta de latão e cobre, luzes quentes | **feito** |
 | 9 | Construção em bordas (estilo The Sims) com 3 abas, utilidades e decoração, rede de energia (eólico, combustão, baterias), mesa de reparos, dia/noite, clima e iluminação | **feito** |

@@ -55,7 +55,7 @@ func _ready() -> void:
 	panel.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	panel.custom_minimum_size = Vector2(0, 310)
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.02, 0.03, 0.04, 0.94)
+	sb.bg_color = Color(0.04, 0.03, 0.02, 0.94)
 	sb.set_content_margin_all(6)
 	sb.border_width_bottom = 2
 	sb.border_color = Color("#9be04a")
@@ -509,7 +509,7 @@ func _find_village(w: World, args: PackedStringArray) -> VillageData:
 
 func _cmd_implant(d: SurvivorData, args: PackedStringArray) -> void:
 	if args.is_empty():
-		_err("Uso: implante <pulmao|hud|braco|pernas|derme|mk1|mk2> (instala direto, sem cirurgia)")
+		_err("Uso: implante <pulmao|hud|braco|pernas|derme|mk1|mk2> (instala a prótese direto, sem cirurgia)")
 		return
 	var q := _norm(args[0])
 	var id := ""
@@ -518,13 +518,13 @@ func _cmd_implant(d: SurvivorData, args: PackedStringArray) -> void:
 			id = k
 			break
 	if id == "":
-		_err("Implante inválido. Opções: pulmao, hud, braco, pernas, derme, mk1, mk2.")
+		_err("Prótese inválida. Opções: pulmao, hud, braco, pernas, derme, mk1, mk2.")
 		return
 	var slot: String = DB.IMPLANTS[id]["slot"]
 	d.implants[slot] = {"id": id, "integ": 100.0}
 	if d.battery <= 0.0:
 		d.battery = 100.0
-	_ok("Implante instalado: %s (bateria %d%%)." % [DB.item_name(id), int(d.battery)])
+	_ok("Prótese instalada: %s (célula %d%%)." % [DB.item_name(id), int(d.battery)])
 
 
 func _cmd_kit(d: SurvivorData, which: String) -> void:

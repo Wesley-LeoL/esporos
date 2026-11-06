@@ -24,7 +24,7 @@ foram trocados. Evento sem arquivo fica mudo, sem erro.
 O código toca os sons de três formas:
 - `Sfx.play_at("nome", posição)`: som num lugar. O volume cai com a distância.
 - `Sfx.play("nome")`: som sem posição, como a interface e as coisas do próprio jogador.
-- `Sfx.loop("nome", nó, ligado)`: som contínuo, como a chuva, o gerador e o motor.
+- `Sfx.loop("nome", nó, ligado)`: som contínuo, como a chuva, o dínamo e o motor.
 
 O servidor espalha os sons do mundo com `World.sfx_at()`, então todos os jogadores ouvem.
 
@@ -89,7 +89,7 @@ O servidor espalha os sons do mundo com `World.sfx_at()`, então todos os jogado
 | `chuva` | Enquanto chove. Fica mais baixo dentro de prédio e não toca nos andares de cima. |
 | `vento` | Na tempestade ou com vento forte. |
 | `trovao` | De vez em quando, na tempestade. |
-| `gerador_loop` | Gerador a combustão funcionando. |
+| `gerador_loop` | Dínamo a vapor funcionando (caldeira acesa). |
 | `purificador_loop` | Purificador ligado. |
 | `motor_loop` | Veículo com motorista; o volume sobe com a velocidade. |
 | `sirene` | Uma horda ou um bando de saqueadores começou a atacar uma vila. |

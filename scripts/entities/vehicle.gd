@@ -66,7 +66,7 @@ func options(p: Player) -> Array:
 	if fuel < 99.5:
 		var gas := String(def()["energia"]) == "combustivel"
 		var have := d.count("combustivel") > 0 if gas else d.count("bateria") > 0
-		out.append({"id": "veh:refuel", "txt": "Abastecer (%s)" % ("galão" if gas else "bateria"), "ok": have})
+		out.append({"id": "veh:refuel", "txt": "Abastecer (%s)" % ("querosene" if gas else "célula galvânica"), "ok": have})
 	if cond < 99.0:
 		out.append({"id": "veh:repair", "txt": "Consertar (1 metal, 2 sucatas)", "ok": d.can_afford({"metal": 1, "sucata": 2})})
 	out.append({"id": "ui:loot", "txt": "Porta-malas", "ok": not locked})

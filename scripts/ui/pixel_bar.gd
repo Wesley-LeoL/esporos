@@ -36,8 +36,8 @@ func _process(delta: float) -> void:
 func _draw() -> void:
 	var w := floorf(size.x / 2.0) * 2.0
 	var h := floorf(size.y / 2.0) * 2.0
-	draw_rect(Rect2(0, 0, w, h), Color("#05080b"))
-	draw_rect(Rect2(2, 2, w - 4, h - 4), Color("#0b1218"))
+	draw_rect(Rect2(0, 0, w, h), Color("#0b0905"))
+	draw_rect(Rect2(2, 2, w - 4, h - 4), Color("#17130c"))
 	var gap := 2.0
 	var inner := w - 8.0
 	var seg_w := floorf((inner - gap * (segments - 1)) / segments / 2.0) * 2.0

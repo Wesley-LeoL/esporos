@@ -23,7 +23,7 @@ func _ready() -> void:
 	var sb := UITheme.box("slot", 12, Vector4(4, 4, 4, 4))
 	add_theme_stylebox_override("panel", sb)
 	if inst.is_empty():
-		modulate = Color(1, 1, 1, 0.55)
+		modulate = Color(1.00, 1.00, 1.00, 0.55)
 		return
 	var layer := Control.new()
 	layer.mouse_filter = Control.MOUSE_FILTER_IGNORE

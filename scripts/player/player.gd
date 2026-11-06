@@ -722,9 +722,9 @@ func _busy_text(action: String, args: Array, patient: Player) -> String:
 		"install":
 			return "Cirurgia: " + DB.item_name(str(args[0])) + who
 		"remove_implant":
-			return "Removendo implante" + who
+			return "Removendo prótese" + who
 		"maintain":
-			return "Manutenção do implante"
+			return "Manutenção da prótese"
 		"craft":
 			return "Fabricando " + String(DB.CRAFTS[str(args[0])]["nome"])
 		"opt":
@@ -866,7 +866,7 @@ func _server_attack(_dir_index: int, aim_angle: float) -> void:
 ## Tempo (s) e texto da barra de cada opção do menu do [E]; 0 = imediato.
 const OPT_TIMES := {"barricar": [4.0, "Barricando"], "tirar_barricada": [2.0, "Tirando a barricada"],
 	"quebrar": [0.8, "Quebrando a janela"], "pular": [0.8, "Subindo na janela"], "consertar_muro": [3.0, "Consertando o muro"],
-	"abastecer": [2.5, "Abastecendo o gerador"], "mastro": [5.0, "Montando o mastro"], "insumo": [2.0, "Abastecendo a máquina"],
+	"abastecer": [2.5, "Abastecendo a caldeira"], "mastro": [5.0, "Montando o mastro"], "insumo": [2.0, "Abastecendo a máquina"],
 	"agua": [1.5, "Recolhendo água"], "canteiro": [2.0, "Cuidando do canteiro"], "lenha": [1.5, "Pondo lenha"], "porta": [0.0, ""]}
 
 

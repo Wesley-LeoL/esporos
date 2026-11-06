@@ -55,8 +55,8 @@ const SAVE_VERSION := 9
 ## desses saves só os sobreviventes e o legado são aproveitados (ver Game.read_save).
 const SAVE_COMPAT := [3, 4, 5, 6, 7, 8, 9]
 const VILLAGE_NAMES: Array[String] = ["Nova Esperança", "Poço Seco", "Torre Cinza", "Vila Ferrugem",
-	"Entreposto 9", "Vale Mudo", "Posto Delta", "Ninho Baixo", "Cais Morto", "Estação Fênix", "Morro Azul",
-	"Forte Néon", "Cratera", "Porto Velho", "Colmeia", "Sétima Linha", "Refúgio Sul", "Barreira Leste"]
+	"Entreposto 9", "Vale Mudo", "Posto da Caldeira", "Ninho Baixo", "Cais Morto", "Estação Fênix", "Morro Azul",
+	"Forte do Latão", "Cratera", "Porto Velho", "Colmeia", "Sétima Linha", "Refúgio Sul", "Barreira Leste"]
 
 var seed_value: int = 0
 var rng := RandomNumberGenerator.new()
@@ -3224,13 +3224,13 @@ func vehicle_action(p: Player, key: String, op: String) -> void:
 			if String(v.def()["energia"]) == "combustivel":
 				var got := d.pour_fuel(need / 2.0) * 2.0
 				if got <= 0.0:
-					Game.tell(p.peer, "Você precisa de um galão de combustível.")
+					Game.tell(p.peer, "Você precisa de um galão de querosene.")
 					return
 				v.fuel = minf(100.0, v.fuel + got)
 			else:
 				var bat := d.first_of("bateria")
 				if bat.is_empty():
-					Game.tell(p.peer, "Você precisa de uma bateria.")
+					Game.tell(p.peer, "Você precisa de uma célula galvânica.")
 					return
 				var add := minf(need, float(bat["carga"]) * 0.5)
 				bat["carga"] = float(bat["carga"]) - add / 0.5

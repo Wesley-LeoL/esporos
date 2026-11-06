@@ -49,7 +49,7 @@ func _show_title() -> void:
 	_title.layer = 30
 	add_child(_title)
 	var bg := ColorRect.new()
-	bg.color = Color("#070b10")
+	bg.color = Color("#0f0c08")
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_title.add_child(bg)
 	# interface em resolução dupla, como o HUD (ver UITheme.UI_SCALE)
@@ -86,10 +86,10 @@ func _show_title() -> void:
 	t.add_theme_color_override("font_color", UITheme.CONTAMINATION)
 	t.add_theme_constant_override("shadow_offset_x", 8)
 	t.add_theme_constant_override("shadow_offset_y", 8)
-	t.add_theme_color_override("font_shadow_color", Color("#2a6b66"))
+	t.add_theme_color_override("font_shadow_color", Color("#66502f"))
 	vb.add_child(t)
 	var sub := Label.new()
-	sub.text = "SOBREVIVÊNCIA TÁTICA CIBER-APOCALÍPTICA"
+	sub.text = "SOBREVIVÊNCIA TÁTICA NUMA ERA DE VAPOR"
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	sub.add_theme_font_size_override("font_size", UITheme.FONT_L)
 	sub.add_theme_color_override("font_color", UITheme.ACCENT)

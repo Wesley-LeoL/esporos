@@ -1,6 +1,6 @@
 # Esporos
 
-Jogo de sobrevivência tático ciberpunk em pixel art 2D isométrico, feito em **Godot 4.7** (GDScript). Design completo em [`docs/GDD.md`](docs/GDD.md).
+Jogo de sobrevivência tático **steampunk** (vapor, latão e engrenagens, com eletricidade ainda rudimentar) em pixel art 2D isométrico, feito em **Godot 4.7** (GDScript). Design completo em [`docs/GDD.md`](docs/GDD.md).
 
 ## Rodar
 Abra a pasta no Godot 4.7+ (versão padrão, não .NET) e aperte F5. O projeto já tem presets de exportação (Windows e Linux) em `export_presets.cfg`.
@@ -8,7 +8,7 @@ Abra a pasta no Godot 4.7+ (versão padrão, não .NET) e aperte F5. O projeto j
 **Controles:** `WASD` mover · mouse mira · `Espaço`/clique atacar · `F` empurrar · `E` interagir · `Tab` ou `I` menu · `X` demolir · `F5` salvar · `Esc` cancelar · `F1` ou `` ` `` console de testes.
 
 ## Controles
-WASD move · o personagem olha para o mouse · Shift corre · C agacha · Espaço/clique ataca na direção do mouse · F empurra (e solta quando agarrado) · R recarrega · E interage: abre um menu pequeno com as opções do objeto (carro, janela, porta, máquinas...; dentro do veículo, sai) · Tab abre o terminal (inventário, corpo, habilidades, implantes, mapa) · I inventário · M mapa · B modo construção · V status do veículo (dentro dele) · X demolição · 1 a 5 barra rápida · F5 salva · F1 console.
+WASD move · o personagem olha para o mouse · Shift corre · C agacha · Espaço/clique ataca na direção do mouse · F empurra (e solta quando agarrado) · R recarrega · E interage: abre um menu pequeno com as opções do objeto (carro, janela, porta, máquinas...; dentro do veículo, sai) · Tab abre o diário de campo (inventário, corpo, habilidades, próteses, mapa) · I inventário · M mapa · B modo construção · V status do veículo (dentro dele) · X demolição · 1 a 5 barra rápida · F5 salva · F1 console.
 
 **Inventário em grade:** botão direito abre as opções do item; arrastar com o botão esquerdo reorganiza ou move entre bolsos, mochila, coldre e o recipiente aberto; dois cliques passam o item entre o recipiente e o inventário; "Organizar" ordena por tipo. Caixas, baús, sacos, cadáveres e porta-malas abrem a grade deles ao lado da sua.
 
@@ -28,7 +28,7 @@ Para testar o co-op numa máquina só: `godot --path . -- --autostart=host --nam
 - **Carga patogênica (0–100%)**: todos nascem infectados; máscara + filtro, supressor químico e purificador controlam a carga. Água contaminada acelera a infecção.
 - **Mar de Esporos**: concentração sobe perto da borda do mapa; na zona letal o filtro é destruído e hordas de elite surgem sem parar.
 - **Inventário por peso e volume**: bolsos, mochilas e coldre com capacidade em litros, sobrecarga que deixa lento, itens com durabilidade (armas e máscara), validade (perecíveis estragam) e carga (bateria, combustível, antisséptico, fita). Janela de saque com o recipiente e o inventário lado a lado; baú para guardar.
-- **Armas de fogo, som e furtividade**: pistola e espingarda com munição, mira no mouse e dispersão; passos, tiros e construções fazem barulho que os infectados investigam; [C] agacha. Ferramentas (martelo, chave de fenda, alicate, serra) e materiais (pregos, fios, sucata eletrônica) para construir.
+- **Armas de fogo, som e furtividade**: pistola e espingarda com munição, mira no mouse e dispersão; passos, tiros e construções fazem barulho que os infectados investigam; [C] agacha. Ferramentas (martelo, chave de fenda, alicate, serra) e materiais (pregos, fios, peças elétricas) para construir.
 - **Combate com ritmo**: o infectado para, prepara o golpe (avermelha), bate e se recupera; apanhar faz cambalear; empurrão (F), golpe furtivo pelas costas, agarrado quando cercado. Tipos: corredor, brutamonte, bolha de esporos, rastejante e o raro chamador, que grita por ajuda quando quase morto.
 - **Janelas e barricadas**: quebre janelas (barulho), pregue barricadas em janelas, portas e vãos; infectados batem nelas e arrombam portas; prédio todo fechado vira o abrigo da equipe.
 - **Sono, frio e chuva**: durma numa cama; o frio da noite e da chuva esfria o corpo (roupa aquece, molhada aquece menos; abrigo e fogo ajudam).
@@ -37,22 +37,22 @@ Para testar o co-op numa máquina só: `godot --path . -- --autostart=host --nam
 - **Sons**: 43 efeitos provisórios numa tabela central (`autoload/sfx_table.gd`, ver `docs/SONS.md`).
 - **Fechaduras e mira**: prédios e móveis trancados (ache a chave ou force com gazua); o personagem olha, bate e atira na direção do mouse.
 - **Móveis, estações e máquinas**: os itens das casas ficam em geladeiras, armários, pias e estantes; bancada, fogareiro, fornalha e mesa de reparos abrem a própria janela; purificador, selagem e torre só funcionam com insumo (filtro, munição) além de energia.
-- **Ferimentos e roupas**: nem todo golpe sangra, e uma ferida aberta só piora com novos cortes; roupas e armaduras (5 espaços) reduzem o dano e o sangramento, gastam com o uso e formam conjuntos com bônus (mecânico, médico, tático, anti-esporos).
+- **Ferimentos e roupas**: nem todo golpe sangra, e uma ferida aberta só piora com novos cortes; roupas e armaduras (5 espaços) reduzem o dano e o sangramento, gastam com o uso e formam conjuntos com bônus (mecânico, médico, regimento, anti-esporos).
 - **Ações com tempo e medicina cooperativa**: curativos, cirurgias, recarga e consumo levam tempo e são interrompidos por movimento ou dano; na aba Corpo dá para tratar e operar um aliado próximo.
-- **Agricultura, culinária e veículos**: canteiros com sementes, rega e colheita (esporos densos matam a plantação); fogareiro e panela para cozinhar e ferver água; picape blindada e moto elétrica abandonadas, com ligação direta, energia, conserto, porta-malas e passageiros.
+- **Agricultura, culinária e veículos**: canteiros com sementes, rega e colheita (esporos densos matam a plantação); fogareiro e panela para cozinhar e ferver água; locomóvel blindado a vapor e triciclo elétrico abandonados, com ligação direta, energia, conserto, porta-malas e passageiros.
 - **Metabolismo**: fome (calorias) e sede (água limpa vs. suja); carboidratos e proteínas foram removidos do protótipo.
 - **Medicina por membros**: 6 membros com ferida leve/profunda, sangramento, desinfecção, bandagem, torções e fraturas (tala), antibiótico, sepse e infecção fúngica por ferida aberta.
-- **Cibernética**: implantes (filtro pulmonar, HUD, braço, pernas hidráulicas, malha subdérmica) com bateria, estresse térmico, integridade e manutenção. O **núcleo neural** limita os implantes (1 sem processador; Mk1 e Mk2 ampliam); passar do limite dá rejeição ou **sobrecarga sináptica** (controle atrasado, espasmos, HUD distorcido, sem ações complexas).
+- **Próteses**: fole pulmonar de latão, monóculo analítico, braço de pistão, pernas pneumáticas e placas subcutâneas, com célula galvânica, superaquecimento, integridade e manutenção. O **regulador craniano** limita as próteses (1 sem regulador; Mk I e Mk II ampliam); passar do limite dá rejeição ou **colapso nervoso** (controle atrasado, espasmos, visão turva, sem ações complexas).
 - **Criação de personagem por pontos**: Força, Resistência, habilidades iniciais e traços (qualidades e defeitos), com modelos prontos; refeita a cada morte.
-- **12 habilidades por uso** (Luta, Pontaria, Atletismo, Furtividade, Mecânica, Eletrônica, Carpintaria, Metalurgia, Medicina, Cibernética, Agricultura, Culinária) e manuais; "parede de conhecimento" para construções e cirurgias.
+- **12 habilidades por uso** (Luta, Pontaria, Atletismo, Furtividade, Mecânica, Eletricidade, Carpintaria, Metalurgia, Medicina, Próteses, Agricultura, Culinária) e manuais; "parede de conhecimento" para construções e cirurgias.
 - **Estamina**: Shift corre; golpes cansam; fome e sobrecarga atrasam a recuperação.
-- **Perma-death com legado**: morte por infecção vira infectado de elite com inventário e implantes; morte física deixa cadáver que decompõe, atrai moscas/hordas e serve de baú.
+- **Perma-death com legado**: morte por infecção vira infectado de elite com inventário e próteses; morte física deixa cadáver que decompõe, atrai moscas/hordas e serve de baú.
 - **Começo aleatório**: o primeiro sobrevivente acorda dentro de um prédio sorteado (vivo ou abandonado, longe dos esporos); quem entra depois acorda no mesmo prédio; depois de morrer, numa cama da equipe ou num prédio novo. As 16 vilas vivas são cercadas e têm NPCs. A cerca tem vida e sobe de nível conforme a vila prospera. Infectados que veem gente lá dentro batem no muro até abrir brecha; hordas atacam de tempos em tempos; guardas, armadilhas e torres defendem. Sem ajuda, a vila pode cair e virar zona morta.
 - **HUD enxuta**: vitais só com ícone e barra, sem a faixa de comandos; **barra rápida** de 5 espaços na direita (arraste itens do inventário; teclas 1 a 5 ou clique usam: empunhar, comer, beber, enfaixar...). **Modo construção** [B]: faixa embaixo com as abas, moldura na tela, câmera deslocada e HUD escondida.
 - **Cidades pequenas e aldeias** ligadas por estradas no meio do campo, cada uma viva, abandonada ou tomada por esporos. **Prédios exploráveis**: piso, paredes nas bordas com portas e janelas, cômodos com móveis e caixas de saque. Ao entrar (ou passar logo atrás), o telhado some e as paredes da frente descem, como no The Sims.
 - **Mundo procedural por seed em chunks** (raio 150 tiles, 16 vilas): só os chunks perto dos jogadores existem como nós. Estradas, caravanas e **vilas vivas** com NPCs (comerciante, guardas, moradores), prosperidade, reputação, comércio e **pedidos de socorro** com prazo; vilas ignoradas caem e viram zonas mortas.
-- **Construção estilo The Sims** ([B], 3 abas): pisos nas células e paredes, janelas e portas nas bordas; Utilidades (bancada, mesa de reparos, geradores a combustão e eólico com mastro de 1 a 5 módulos, baterias, purificador, torre, selagem, coletor de chuva, canteiro, baú, cama) e Decoração (luzes e móveis).
-- **Rede de energia** por produção e consumo, com prioridade e baterias.
+- **Construção estilo The Sims** ([B], 3 abas): pisos nas células e paredes, janelas e portas nas bordas; Utilidades (bancada, mesa de reparos, dínamo a vapor e cata-vento com mastro de 1 a 5 módulos, acumuladores, exaustor purificador, torre de engrenagens, vedação pneumática, coletor de chuva, canteiro, baú, cama) e Decoração (luzes e móveis).
+- **Rede elétrica experimental** por produção e consumo, com prioridade e acumuladores.
 - **Dia/noite e clima**: chuva, tempestade, névoa de esporos e vento, que afetam a visão dos infectados, o barulho, os eólicos, a agricultura e a iluminação.
 - **Persistência de deltas**: só construções, terreno, caixas saqueadas, baús, cadáveres, elites, vilas e legado vão para o save (saves da versão anterior são convertidos).
 
@@ -60,12 +60,12 @@ Para testar o co-op numa máquina só: `godot --path . -- --autostart=host --nam
 `F1` ou `` ` `` abre o terminal (pausa o jogo). Digite `ajuda`. Comandos: `dar <item> [qtd]`, `dano <membro|todos> <n>`, `spawn [normal|elite] [n]`, `tp <x> <y>` (ou `abrigo`, `vila <n>`, `borda`, `cadaver`, `elite`), `set` (patogeno, sangue, calorias, agua, bateria, filtro, calor, estamina), `skill`, `curar`, `restaurar`, `implante`, `god`, `matar`, `infectar`, `limpar`, `pos`, `salvar`. Códigos prontos: `kit`, `kit_medico`, `kit_build`, `kit_cyber`. Tab completa, ↑↓ navega no histórico.
 
 ## Arte
-O pacote FreeSample define o padrão visual ([`assets/art/STYLE.md`](assets/art/STYLE.md)). Todo o resto é gerado por código no mesmo padrão: personagens, construções, caixas, paredes de prédio (5 materiais x 7 variações, inteiras e baixas), telhados, móveis, objetos de cenário, 22 tipos de chão e os ícones. A prancha com todas as texturas fica em [`docs/texturas.png`](docs/texturas.png). A interface (HUD, menu, título, tela de morte) é pixel art ciberpunk gerada por `tools/gen_ui.py`, com a fonte Jersey 10 (OFL). Detalhes e como regerar em [`assets/art/README.md`](assets/art/README.md).
+O pacote FreeSample define o padrão visual ([`assets/art/STYLE.md`](assets/art/STYLE.md)). Todo o resto é gerado por código no mesmo padrão: personagens, construções, caixas, paredes de prédio (5 materiais x 7 variações, inteiras e baixas), telhados, móveis, objetos de cenário, 22 tipos de chão e os ícones. A prancha com todas as texturas fica em [`docs/texturas.png`](docs/texturas.png). A interface (HUD, menu, título, tela de morte) é pixel art steampunk (madeira, latão e cobre) gerada por `tools/gen_ui.py`, com a fonte Jersey 10 (OFL). Detalhes e como regerar em [`assets/art/README.md`](assets/art/README.md).
 
 ## Estrutura
 ```
 autoload/   input_setup.gd (ações) · net.gd (sessão co-op, ENet, replicação) · game.gd (mensagens, save, legado, debug)
-scripts/data/      db.gd (itens, implantes, construções) · items.gd (instâncias e listas de itens) · survivor_data.gd (toda a lógica de sobrevivência)
+scripts/data/      db.gd (itens, próteses, construções) · items.gd (instâncias e listas de itens) · survivor_data.gd (toda a lógica de sobrevivência)
 scripts/world/     world.gd (mundo, spawn, vilas, construção, morte) · map_gen.gd (cidades, aldeias, prédios exploráveis) · village_data.gd
 scripts/entities/  structure · infected · npc · vehicle · corpse · loot_container · caravan · build_ghost · shot_fx
 scripts/player/    player.gd
@@ -78,6 +78,6 @@ scripts/art/       art_db.gd + art_catalog.gd (pacote) · gen_art.gd + gen_catal
 ```bash
 tools/setup.sh
 tools/screenshot.sh saida.png --frames=90 --debug="5:give:metal,10;20:tab:3"
-godot --headless --path . -s res://tools/test_logic.gd   # lógica do sobrevivente (inventário, criação, implantes...)
+godot --headless --path . -s res://tools/test_logic.gd   # lógica do sobrevivente (inventário, criação, próteses...)
 godot --headless --path . res://tools/test_world.tscn    # geração do mundo e vilas
 ```

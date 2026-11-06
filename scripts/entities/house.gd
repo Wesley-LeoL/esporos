@@ -56,7 +56,8 @@ func _ready() -> void:
 	if roof.begins_with("torre"):
 		var n := int(world.houses[id].get("andares", 2))
 		_back = 2 + (n - 1) * 3
-		var cols := [Color(0.35, 0.9, 1.0), Color(1.0, 0.4, 0.9), Color(1.0, 0.75, 0.4)]
+		# lâmpadas incandescentes: tons quentes, do âmbar ao branco amarelado
+		var cols := [Color(1.0, 0.78, 0.45), Color(1.0, 0.62, 0.3), Color(1.0, 0.88, 0.62)]
 		var w := float(rect.size.x)
 		var d := float(rect.size.y)
 		var spots := [Vector2(0, -40.0 * n), Vector2(World.HALF_W * 0.25 * w, -20.0 * n), Vector2(-World.HALF_W * 0.25 * d, -20.0 * n)]

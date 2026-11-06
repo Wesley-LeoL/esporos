@@ -11,7 +11,7 @@ var source := "gen"
 
 var _light: PointLight2D
 var _lit_t := 0.0
-const LAMPS := {"poste_rua": [Color(1.0, 0.95, 0.85), 2.0, -80.0], "poste_neon": [Color(0.9, 0.4, 1.0), 1.6, -60.0],
+const LAMPS := {"poste_rua": [Color(1.0, 0.95, 0.85), 2.0, -80.0], "poste_neon": [Color(1.0, 0.72, 0.38), 1.6, -60.0],
 	"tambor_fogo": [Color(1.0, 0.6, 0.3), 1.3, -24.0]}
 
 

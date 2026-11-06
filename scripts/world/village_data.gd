@@ -10,7 +10,7 @@ extends RefCounted
 const CATEGORY := {"comida": {"tipos": ["comida"]}, "med": {"tipos": ["med", "analgesico"]},
 	"material": {"tipos": ["material"], "fora": ["fios", "sucata_eletronica", "pregos"]},
 	"eletronico": {"ids": ["fios", "sucata_eletronica", "bateria"]}}
-const CATEGORY_NAMES := {"comida": "comida", "med": "remédios", "material": "materiais", "eletronico": "peças eletrônicas"}
+const CATEGORY_NAMES := {"comida": "comida", "med": "remédios", "material": "materiais", "eletronico": "peças elétricas"}
 ## Reputação por unidade doada.
 const DONATE_REP := {"comida": 2.0, "med": 3.0, "material": 1.0, "eletronico": 3.0}
 const REQUEST_TIME := 360.0
@@ -166,7 +166,7 @@ func maybe_request(rng: RandomNumberGenerator, clock: float, dt: float) -> bool:
 		"material":
 			request = {"tipo": tipo, "texto": "barricadas caindo", "need": {"material": 8 + rng.randi_range(0, 6)}, "kills": 0}
 		"eletronico":
-			request = {"tipo": tipo, "texto": "o gerador da vila quebrou", "need": {"eletronico": 3 + rng.randi_range(0, 2)}, "kills": 0}
+			request = {"tipo": tipo, "texto": "o dínamo da vila quebrou", "need": {"eletronico": 3 + rng.randi_range(0, 2)}, "kills": 0}
 	request["prazo"] = clock + REQUEST_TIME
 	return true
 

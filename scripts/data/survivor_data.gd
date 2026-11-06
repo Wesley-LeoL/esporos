@@ -580,7 +580,7 @@ func repair(u: int, bench := false) -> void:
 		return
 	var gun := String(Items.def(id).get("tipo", "")) == "arma_fogo"
 	if count("fita") <= 0 or (gun and count("sucata") <= 0):
-		message.emit("Você precisa de fita adesiva%s." % (" e 1 sucata" if gun else ""))
+		message.emit("Você precisa de fita de lona%s." % (" e 1 sucata" if gun else ""))
 		return
 	spend("fita")
 	if gun:
@@ -869,12 +869,12 @@ func _tick_implants(delta: float, exerting: bool) -> void:
 	battery = maxf(0.0, battery - drain * delta)
 	heat = move_toward(heat, minf(target, 100.0), 0.6 * delta)
 	if battery <= 0.0 and drain == 0.0:
-		_warn("bateria", "Bateria dos implantes esgotada! Eles estão desligados.")
+		_warn("bateria", "A célula galvânica das próteses esgotou! Elas estão paradas.")
 	if heat > 70.0:
 		for slot in implants:
 			var def: Dictionary = DB.IMPLANTS[implants[slot]["id"]]
-			_hurt_internal(def["membro"], 0.6 * delta, "Estresse térmico dos implantes")
-		_warn("calor", "Superaquecimento! Seus implantes estão queimando seus tecidos.")
+			_hurt_internal(def["membro"], 0.6 * delta, "Superaquecimento das próteses")
+		_warn("calor", "Superaquecimento! As engrenagens das próteses estão queimando sua pele.")
 
 
 func immune_mult() -> float:
@@ -943,7 +943,7 @@ func _tick_pathogen(delta: float, spore: float, purifier: bool) -> void:
 			elif filter_pct() < 15.0:
 				_warn("filtro", "O filtro está quase no fim.")
 		if mask_seal() < 30.0:
-			_warn("vedacao", "A vedação da máscara está ruim: conserte com fita adesiva.", 60.0)
+			_warn("vedacao", "A vedação da máscara está ruim: conserte com fita de lona.", 60.0)
 	if pathogen > 75.0:
 		_warn("patogeno", "A carga patogênica está crítica!", 25.0)
 
@@ -1299,7 +1299,7 @@ func use_item(ref: Variant) -> void:
 			message.emit("Supressor aplicado: carga -15%.")
 		"bateria":
 			if battery >= 99.5:
-				message.emit("A bateria dos implantes já está cheia.")
+				message.emit("A célula das próteses já está cheia.")
 				return
 			# uma bateria cheia (carga 100) vale 60% da bateria dos implantes
 			var amount := minf(100.0 - battery, float(inst["carga"]) * 0.6)
@@ -1307,7 +1307,7 @@ func use_item(ref: Variant) -> void:
 			inst["carga"] = float(inst["carga"]) - amount / 0.6
 			if float(inst["carga"]) <= 0.5:
 				remove_u(u)
-			message.emit("Implantes recarregados (%d%%)." % int(battery))
+			message.emit("Próteses recarregadas (%d%%)." % int(battery))
 		"manual":
 			remove_u(u)
 			message.emit("Você estudou: %s." % def["nome"])
@@ -1507,18 +1507,18 @@ func _tick_neural(delta: float) -> void:
 	if overloaded():
 		heat = minf(100.0, heat + 0.4 * delta)
 		if over:
-			_hurt_internal("cabeca", 0.15 * delta, "Colapso sináptico")
-			_warn("sobrecarga", "SOBRECARGA SINÁPTICA! Implantes demais para o seu cérebro (%d/%d)." % [general_count(), neural_capacity()], 20.0)
+			_hurt_internal("cabeca", 0.15 * delta, "Colapso nervoso")
+			_warn("sobrecarga", "COLAPSO NERVOSO! Próteses demais para o seu corpo (%d/%d)." % [general_count(), neural_capacity()], 20.0)
 		else:
-			_warn("sobrecarga", "SOBRECARGA SINÁPTICA! O estresse neural está alto demais.", 20.0)
+			_warn("sobrecarga", "COLAPSO NERVOSO! A tensão nervosa está alta demais.", 20.0)
 	elif synaptic > 60.0:
-		_warn("neural", "Estresse sináptico alto: sua visão tremula.", 45.0)
+		_warn("neural", "Tensão nervosa alta: sua visão tremula.", 45.0)
 
 
 ## O sobrevivente pode fazer ações complexas (fabricar, tratar, operar, construir)?
 func complex_block() -> String:
 	if overloaded():
-		return "Sobrecarga sináptica: suas mãos não obedecem."
+		return "Colapso nervoso: suas mãos não obedecem."
 	return ""
 
 
@@ -1531,7 +1531,7 @@ func install_implant(item_id: String, surgeon: SurvivorData = null) -> void:
 	var def: Dictionary = DB.IMPLANTS[item_id]
 	var slot: String = def["slot"]
 	if implants.has(slot):
-		h.message.emit("Esse encaixe já tem um implante.")
+		h.message.emit("Esse encaixe já tem uma prótese.")
 		return
 	if h.count("kit_cirurgico") <= 0:
 		h.message.emit("Você precisa de um kit cirúrgico.")
@@ -1544,8 +1544,8 @@ func install_implant(item_id: String, surgeon: SurvivorData = null) -> void:
 		synaptic = 100.0
 		h.add_xp("cibernetica", 6.0)
 		if h != self:
-			h.message.emit("O corpo do paciente rejeitou o implante: ele não tem suporte neural.")
-		message.emit("REJEIÇÃO IMEDIATA: seu cérebro não suporta mais um implante (%d/%d). O implante foi perdido." % [general_count(), neural_capacity()])
+			h.message.emit("O corpo do paciente rejeitou a prótese: ele não tem regulador craniano que aguente.")
+		message.emit("REJEIÇÃO IMEDIATA: seu corpo não aguenta mais uma prótese (%d/%d). A prótese foi perdida." % [general_count(), neural_capacity()])
 		return
 	var deficit := 0
 	for k in def["req"]:
@@ -1554,7 +1554,7 @@ func install_implant(item_id: String, surgeon: SurvivorData = null) -> void:
 		implants[slot] = {"id": item_id, "integ": 100.0 if h != self else 80.0}
 		h.add_xp("medicina", 30.0)
 		h.add_xp("cibernetica", 30.0)
-		_say_both(h, "Implante instalado com sucesso: %s%s." % [DB.item_name(item_id),
+		_say_both(h, "Prótese instalada com sucesso: %s%s." % [DB.item_name(item_id),
 			"" if h != self else " (operar a si mesmo deixou o encaixe imperfeito: 80%)"])
 		return
 	var r := rng.randf()
@@ -1567,7 +1567,7 @@ func install_implant(item_id: String, surgeon: SurvivorData = null) -> void:
 		message.emit("A cirurgia deu errado de forma fatal...")
 	elif r < death_p + crit_p:
 		damage_limb("torso", 35.0)
-		message.emit("FALHA CRÍTICA na cirurgia! O implante foi destruído.")
+		message.emit("FALHA CRÍTICA na cirurgia! A prótese foi destruída.")
 		add_xp("medicina", 10.0)
 	else:
 		implants[slot] = {"id": item_id, "integ": 55.0}
@@ -1592,15 +1592,15 @@ func remove_implant(slot: String, surgeon: SurvivorData = null) -> void:
 	var fail := maxf(0.0, 0.35 - 0.08 * float(h.level("cibernetica")))
 	if rng.randf() < fail:
 		damage_limb(def["membro"], 18.0)
-		_say_both(h, "A remoção foi brusca: o implante quebrou e feriu %s." % LIMB_NAMES[def["membro"]].to_lower())
+		_say_both(h, "A remoção foi brusca: a prótese quebrou e feriu %s." % LIMB_NAMES[def["membro"]].to_lower())
 	elif float(imp["integ"]) < 15.0:
-		_say_both(h, "Implante removido, mas destruído demais para reaproveitar.")
+		_say_both(h, "Prótese removida, mas destruída demais para reaproveitar.")
 	else:
 		h.give(imp["id"])
-		_say_both(h, "Implante removido: %s." % DB.item_name(imp["id"]))
+		_say_both(h, "Prótese removida: %s." % DB.item_name(imp["id"]))
 	h.add_xp("cibernetica", 8.0)
 	if slot == "cerebro" and general_count() > DB.NEURAL_BASE:
-		message.emit("Sem o processador, seu cérebro não suporta os implantes!")
+		message.emit("Sem o regulador craniano, seu corpo não aguenta as próteses!")
 
 
 func maintain_implant(slot: String) -> void:
