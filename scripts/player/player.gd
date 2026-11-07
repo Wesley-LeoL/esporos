@@ -18,11 +18,12 @@ const ACTIONS := ["hotbar", "use_item", "treat", "craft", "install", "maintain",
 	"loot_order", "sort_loot"]
 ## Ações que levam tempo (barra de progresso; mover-se ou levar dano interrompe).
 const TIMED := ["treat", "install", "remove_implant", "maintain", "craft", "reload", "repair", "use_item", "vehicle", "unlock", "opt"]
-const TREAT_NAMES := {"antibiotico": "Aplicando antibiótico", "desinfetar": "Desinfetando", "enfaixar": "Enfaixando",
-	"imobilizar": "Imobilizando"}
+## "treat" = usar um remédio ou curativo [id do item, peer do paciente (0 = você)].
+const TREAT_NAMES := {"tala": "Imobilizando a perna", "antibiotico": "Tomando antibiótico", "analgesico": "Tomando analgésico",
+	"hemostatico": "Aplicando pó hemostático"}
 ## Vestir (roupa, máscara, mochila, coldre) é imediato.
 const USE_TIME := {"comida": 1.5, "bebida": 1.5, "cantil": 1.2, "filtro": 2.5, "manual": 8.0,
-	"analgesico": 1.0, "supressor": 1.5, "bateria": 2.0, "pilha": 1.0}
+	"estimulante": 1.2, "supressor": 1.5, "bateria": 2.0, "pilha": 1.0}
 ## Ações que a sobrecarga sináptica impede (GDD 4: incapacidade de ações complexas).
 const COMPLEX := ["treat", "craft", "install", "maintain", "build", "repair"]
 
@@ -513,7 +514,7 @@ func _run_act(action: String, args: Array) -> void:
 			var pt := _patient_of(action, args)
 			if pt != null:
 				world.sfx_at("curativo", position if is_local() else net_pos)
-				pt.data.treat(str(args[0]), str(args[1]), data if pt != self else null)
+				pt.data.apply_med(str(args[0]), data if pt != self else null)
 				pt._sync_t = 0.0
 		"craft":
 			var rid := str(args[0])
@@ -644,7 +645,7 @@ func is_busy() -> bool:
 
 ## Paciente de uma ação médica (o próprio jogador ou um aliado próximo e livre).
 func _patient_of(action: String, args: Array) -> Player:
-	var idx := {"treat": 2, "install": 1, "remove_implant": 1}.get(action, -1) as int
+	var idx := {"treat": 1, "install": 1, "remove_implant": 1}.get(action, -1) as int
 	if idx < 0 or args.size() <= idx or int(args[idx]) == peer or int(args[idx]) == 0:
 		return self
 	var other: Player = world.players.get(int(args[idx]))
@@ -668,8 +669,7 @@ func _duration(action: String, args: Array, patient: Player) -> float:
 	var cib := 1.0 - 0.05 * float(data.level("cibernetica"))
 	match action:
 		"treat":
-			return {"antibiotico": 2.0, "desinfetar": 3.0, "enfaixar": 4.0, "imobilizar": 6.0}.get(str(args[1]), 3.0) * med \
-				* (1.25 if patient == self else 1.0)
+			return float(DB.ITEMS.get(str(args[0]), {}).get("tempo", 2.0)) * med * (1.2 if patient == self else 1.0)
 		"install":
 			return 14.0 * cib
 		"remove_implant":
@@ -717,8 +717,7 @@ func _busy_text(action: String, args: Array, patient: Player) -> String:
 	var who := "" if patient == self else " em %s" % patient.data.nome
 	match action:
 		"treat":
-			var limb: String = "" if str(args[1]) == "antibiotico" else " " + str(SurvivorData.LIMB_NAMES[str(args[0])])
-			return TREAT_NAMES.get(str(args[1]), "Tratando") + limb + who
+			return TREAT_NAMES.get(str(args[0]), "Usando " + DB.item_name(str(args[0])).to_lower()) + who
 		"install":
 			return "Cirurgia: " + DB.item_name(str(args[0])) + who
 		"remove_implant":
@@ -796,7 +795,7 @@ func _tick_busy() -> void:
 	_sync_t = 0.0
 
 
-## Servidor: manda os dados médicos de um aliado próximo para quem pediu (aba Corpo).
+## Servidor: manda os dados médicos de um aliado próximo para quem pediu (aba Próteses).
 func _examine(target: int) -> void:
 	var other: Player = world.players.get(target)
 	if other == null or other.data == null or not other.alive:
@@ -806,8 +805,8 @@ func _examine(target: int) -> void:
 	if Vector2(b.x - a.x, (b.y - a.y) * 2.0).length() > 160.0:
 		return
 	var od := other.data
-	var info := {"nome": od.nome, "limbs": od.limbs.duplicate(true), "blood": od.blood, "pathogen": od.pathogen,
-		"implants": od.implants.duplicate(true), "antibiotic_t": od.antibiotic_t, "cap": od.neural_capacity(),
+	var info := {"nome": od.nome, "hp": od.hp, "bleed": od.bleed, "perna": od.perna, "tala": od.tala, "pathogen": od.pathogen,
+		"implants": od.implants.duplicate(true), "cap": od.neural_capacity(),
 		"general": od.general_count()}
 	if is_local():
 		_patient_info(target, info)
@@ -1063,12 +1062,12 @@ func _creation_refused() -> void:
 
 
 ## Dano vindo dos infectados (servidor).
-func server_hurt(limb: String, amount: float, pathogen_gain: float) -> void:
+func server_hurt(amount: float, pathogen_gain: float) -> void:
 	if data == null or not alive or data.god:
 		return
 	data.sleeping = false
 	world.sfx_at("dor", position if is_local() else net_pos)
-	data.damage_limb(limb, amount)
+	data.damage(amount)
 	data.pathogen = minf(100.0, data.pathogen + pathogen_gain)
 	hurt_seq += 1
 	if not _busy.is_empty():

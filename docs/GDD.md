@@ -33,8 +33,8 @@ Antes de iniciarmos a lógica, preciso que você me oriente a:
 * **Metabolismo Direto:** 
   * **Fome:** Necessidade de ingestão calórica para manter a estamina e a regeneração.
   * **Sede:** Água limpa vs. Água contaminada. Beber água de poças/fontes não tratadas acelera perigosamente a carga patogênica.
-* **Medicina por Membros (Cooperativa):** 
-  * Ferimentos localizados que exigem desinfecção, bandagens e antibióticos; ossos torcidos ou quebrados (quedas) pedem tala.
+* **Saúde simples (Cooperativa):** (fase 25: substitui a medicina por membros)
+  * Uma barra de vida. Golpes tiram vida e podem abrir sangramento, que piora com novos cortes; bandagens estancam e curam; a perna pode torcer ou quebrar (tala). Sem infecção de ferida.
   * *Mecânica Co-op:* Um jogador pode realizar cirurgias de campo ou aplicar curativos em um aliado ferido, exigindo tempo estático e gerando vulnerabilidade para la dupla.
 
 ---
@@ -145,7 +145,7 @@ Antes de iniciarmos a lógica, preciso que você me oriente a:
 ### Ações com tempo e medicina cooperativa (fase 6)
 
 - **Ações com tempo:** tratar (2 a 8 s), operar (14 s), remover implante (10 s), manutenção (5 s), fabricar, consertar, recarregar (1,6 s pistola, 2,4 s espingarda), comer, beber, vestir mochila ou máscara, trocar filtro e ler manuais. Uma barra aparece no HUD e sobre a cabeça do personagem (todos veem). Andar ou levar um golpe interrompe. Medicina, Cibernética e Pontaria encurtam o tempo.
-- **Tratar um aliado:** na aba Corpo escolha o paciente (aliados a até ~2 tiles). Curativos, antibiótico, tala, instalação e remoção de implantes usam os suprimentos e as habilidades de quem trata. Os dois ficam parados e vulneráveis; se qualquer um se mexer ou for atacado, o procedimento para. Tratar outra pessoa é 25% mais rápido e rende 50% mais experiência; operar a si mesmo deixa o implante com integridade 80%.
+- **Tratar um aliado:** (fase 25: botão direito no curativo → "Usar em <aliado>"; cirurgia na aba Próteses) ~~na aba Corpo escolha o paciente~~ (aliados a até ~2 tiles). Curativos, antibiótico, tala, instalação e remoção de implantes usam os suprimentos e as habilidades de quem trata. Os dois ficam parados e vulneráveis; se qualquer um se mexer ou for atacado, o procedimento para. Tratar outra pessoa é 25% mais rápido e rende 50% mais experiência; operar a si mesmo deixa o implante com integridade 80%.
 
 ### Ferimentos, roupas e armaduras (fase 12)
 
@@ -329,6 +329,42 @@ Antes de iniciarmos a lógica, preciso que você me oriente a:
   O clima muda a cada 3 a 7 minutos. O HUD mostra a hora e o clima.
 
 
+## Saúde simples (fase 25)
+
+Substitui a medicina por membros (fases 4, 6 e 12). **Não existem mais membros nem a aba Corpo.**
+
+- **Vida:** uma barra só (0 a 100). Morre com vida 0 ou carga patogênica 100%. Fome, sede,
+  hipotermia, superaquecimento das próteses e quedas tiram vida.
+- **Golpe:** tira vida (a roupa reduz) e pode abrir **sangramento**. A chance cresce com o
+  dano (10% + 2,2% por ponto, até 75%; golpes de menos de 4 nunca sangram; a roupa reduz a
+  chance). Já sangrando, cada novo corte **aumenta** o sangramento.
+- **Sangramento:** tira vida por segundo. Leve (< 0,12/s) estanca sozinho devagar; moderado e
+  grave só param com curativo. Os efeitos mostram "SANGRAMENTO LEVE/MODERADO/GRAVE".
+- **Cura natural:** sem sangrar e alimentado, a vida volta 0,04/s.
+- **Perna:** quedas (e às vezes a mordida do rastejante) **torcem** ou **quebram** a perna.
+  Torção deixa 15% mais lento e sara sozinha (90 s com tala, 240 s sem); fratura deixa 35%
+  mais lento e só sara com **tala** (10 min). A tala alivia a lentidão e cura 5 de vida.
+- **Sem infecção:** a infecção de ferida e a sepse saíram. O antibiótico virou cura aos poucos.
+- **Roupas:** continuam com defesa e corte; a proteção é a média das partes do corpo que cada
+  peça cobre. Os espaços de roupa ficam no topo do inventário.
+
+| Item | Efeito | Como conseguir |
+|---|---|---|
+| Bandagem | estanca, +12 de vida | saque; rasgar camisa (x3) |
+| Gaze esterilizada | estanca, +18 | saque; ferver 2 bandagens no fogareiro (Medicina 1) |
+| Curativo com iodo | estanca, +28 | bandagem + iodo (Medicina 1) |
+| Curativo de campo | estanca, +40 e +0,25/s por 40 s | 2 gazes + iodo + álcool (Medicina 3) |
+| Antibiótico | +0,5/s por 60 s | saque |
+| Analgésico | sangramento -50%, 2 min sem dor (perna atrasa menos) | saque |
+| Pó hemostático | sangramento -80% | saque (clínica, pia) |
+| Tala | imobiliza a perna, +5 | saque; madeira + bandagem |
+| Tônico revigorante | estamina volta 80% mais rápido por 2 min (+10 de água) | saque; água + 2 maçãs no fogareiro (Culinária 1) |
+| Seringa de adrenalina | +50 de estamina e 3x a recuperação por 30 s | saque raro (clínica) |
+
+A Medicina (6% por nível) e a roupa de médico aumentam a cura de quem aplica. Iodo e álcool
+viraram ingredientes. Saves antigos: a vida vira o pior entre sangue, cabeça e tronco; o
+sangramento é a soma das feridas abertas; a pior perna vira a perna.
+
 ## Tema steampunk (fase 23)
 
 O jogo trocou o tema cyberpunk pelo **steampunk**. As mecânicas não mudaram; mudaram nomes,
@@ -400,4 +436,5 @@ ela será refeita no tema novo com o PixelLab.
 | 22 | Interior escondido de fora (espiar pela janela volta), infectados em casas abandonadas, vilas com cerca incompleta e mais guardas, espetos em volta da vila que ferem e deixam lento | **feito** |
 | 23 | Tema steampunk: nomes, textos, próteses no lugar de implantes, eletricidade rudimentar, paleta de latão e cobre, luzes quentes | **feito** |
 | 24 | Menu de pausa no ESC (pausa no solo; continuar, controles, salvar e voltar ao menu, salvar e sair) e troca de teclas salva em user://controles.cfg; avisos e teclas do HUD mostram a tecla atual | **feito** |
+| 25 | Saúde simples: vida única, sangramento que piora, perna torcida/quebrada com tala, curativos que curam na hora (e melhores fabricados), antibiótico que cura aos poucos, analgésico e hemostático, tônico e adrenalina para a estamina; aba Corpo removida | **feito** |
 | 9 | Construção em bordas (estilo The Sims) com 3 abas, utilidades e decoração, rede de energia (eólico, combustão, baterias), mesa de reparos, dia/noite, clima e iluminação | **feito** |

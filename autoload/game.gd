@@ -153,13 +153,12 @@ func debug_command(cmd: String) -> void:
 		"pathogen":
 			p.data.pathogen = float(arg)
 		"hurt":
-			p.data.damage_limb(a[0], float(a[1]))
+			# hurt:dano (o último valor serve, para aceitar o formato antigo hurt:membro,dano)
+			p.data.damage(float(a[a.size() - 1]))
 		"wound":
-			# wound:membro,1|2 -> abre ferida direto (testes)
-			var wl: Dictionary = p.data.limbs[a[0]]
-			wl["wound"] = int(a[1]) if a.size() > 1 else 1
-			wl["bleed"] = 0.25 * float(wl["wound"])
-			wl["hp"] = minf(float(wl["hp"]), 60.0)
+			# wound:sangramento (vida/s) -> sangrando direto, com a vida em 60 (testes)
+			p.data.bleed = float(arg) if arg != "" and arg.is_valid_float() else 0.25
+			p.data.hp = minf(p.data.hp, 60.0)
 		"fall":
 			p.data.fall_injury(float(arg))
 		"wear":
@@ -210,7 +209,7 @@ func debug_command(cmd: String) -> void:
 		"infect":
 			p.data.pathogen = 100.0
 		"bleed":
-			p.data.blood = 0.0
+			p.data.hp = 0.0
 			p.data.kill("Sangramento", "fisica")
 		"place":
 			var base := world.ground.local_to_map(world.ground.to_local(p.position))
@@ -386,7 +385,8 @@ func debug_command(cmd: String) -> void:
 			hud.patient_peer = int(arg)
 			p.act("examine", [int(arg)])
 		"treat_ally":
-			p.act("treat", [a[0], a[1], int(a[2]) if a.size() > 2 else 1])
+			# treat_ally:item[,peer] — usa um remédio no aliado (testes)
+			p.act("treat", [a[0], int(a[1]) if a.size() > 1 else 1])
 		"tpv":
 			var v: VillageData = world.villages[int(arg)]
 			p.teleport(world.ground.map_to_local(v.cell + Vector2i(2, 3)))

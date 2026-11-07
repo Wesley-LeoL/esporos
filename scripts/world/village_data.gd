@@ -7,7 +7,7 @@ extends RefCounted
 ## Categorias de entrega: comida, med, material, eletronico (ver CATEGORY).
 
 ## Categoria de entrega -> tipos (DB.ITEMS[id]["tipo"]) ou ids aceitos.
-const CATEGORY := {"comida": {"tipos": ["comida"]}, "med": {"tipos": ["med", "analgesico"]},
+const CATEGORY := {"comida": {"tipos": ["comida"]}, "med": {"tipos": ["med", "estimulante"]},
 	"material": {"tipos": ["material"], "fora": ["fios", "sucata_eletronica", "pregos"]},
 	"eletronico": {"ids": ["fios", "sucata_eletronica", "bateria"]}}
 const CATEGORY_NAMES := {"comida": "comida", "med": "remédios", "material": "materiais", "eletronico": "peças elétricas"}

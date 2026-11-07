@@ -36,9 +36,16 @@ static func frame_texture(sheet: String, row: int = 0, col: int = 0) -> Texture2
 	return at
 
 
+## Itens sem ícone próprio ainda (usam o de um parecido até a arte nova).
+const ICON_ALIAS := {"curativo_iodo": "bandagem", "curativo_campo": "gaze", "hemostatico": "analgesico",
+	"tonico_energetico": "agua_limpa", "adrenalina": "supressor"}
+
+
 static func icon(item: String) -> Texture2D:
 	if not GenCatalog.ICONS.has(item):
-		return null
+		item = String(ICON_ALIAS.get(item, ""))
+		if not GenCatalog.ICONS.has(item):
+			return null
 	if _icon_cache.has(item):
 		return _icon_cache[item]
 	if _icons == null:

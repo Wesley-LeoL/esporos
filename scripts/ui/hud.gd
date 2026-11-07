@@ -16,10 +16,10 @@ const VITALS := [
 	["sono", "relogio", "DESCANSO", Color("#e9cda2"), false],
 	["temp", "calor", "TEMPERATURA DO CORPO", Color("#ff9a5a"), false],
 ]
-const TAB_DEFS := [["inv", "Inventário", "mochila"], ["corpo", "Corpo", "corpo"], ["skills", "Habilidades", "chip"],
+const TAB_DEFS := [["inv", "Inventário", "mochila"], ["skills", "Habilidades", "chip"],
 	["impl", "Próteses", "bateria"], ["mapa", "Mapa", "mundo"]]
 const TAB_INV := 0
-const TAB_MAP := 4
+const TAB_MAP := 3
 ## Dicas do canto: [ação, texto]. A tecla mostrada é a atual (o jogador pode trocar no ESC).
 const HINTS := [["sprint", "CORRER"], ["sneak", "AGACHAR"], ["reload", "RECARREGAR"], ["interact", "INTERAGIR"],
 	["menu", "MENU"], ["inventory", "INVENTÁRIO"], ["map", "MAPA"], ["build_menu", "CONSTRUIR"], ["cancel", "PAUSA"]]
@@ -81,9 +81,6 @@ var spec := {}
 var _creation_sent := false
 ## Medicina cooperativa: paciente escolhido na aba Corpo (0 = você) e dados recebidos.
 var patient_peer := 0
-## Membro escolhido na aba Corpo; body_auto = segue o mais grave até o jogador clicar.
-var body_sel := "torso"
-var body_auto := true
 var patient_info := {}
 ## Vila aberta pela conversa com um NPC (-1 = a mais próxima).
 var village_open := -1
@@ -1038,7 +1035,7 @@ func _process(delta: float) -> void:
 	name_label.text = d.nome.to_upper()
 	time_label.text = "T+" + _fmt_time(d.time_alive)
 	_set_bar("pathogen", d.pathogen)
-	_set_bar("blood", d.blood)
+	_set_bar("blood", d.hp)
 	_set_bar("hunger", 100.0 - d.calories / SurvivorData.MAX_CAL * 100.0)
 	_set_bar("thirst", d.water)
 	_set_bar("stamina", d.stamina / d.max_stamina() * 100.0)
@@ -1082,7 +1079,7 @@ func _process(delta: float) -> void:
 		hurt.color = Color(0.25, 0.5, 0.15, clampf((d.pathogen - 40.0) / 60.0 * 0.2, 0.0, 0.2))
 	else:
 		hurt.color = Color(0.9, 0.1, 0.1, hurt.color.a)
-	var low := d.blood < 30.0 or float(d.limbs["torso"]["hp"]) < 25.0
+	var low := d.hp < 30.0
 	var pulse := 0.5 + 0.5 * sin(_t * 5.0)
 	vignette.self_modulate = Color(1.0, 0.25, 0.3).lerp(Color.WHITE, pulse * 0.5) if low else Color.WHITE
 	_neural_glitch(d)
@@ -1287,50 +1284,17 @@ func hot_use(i: int) -> void:
 	if inst.is_empty():
 		Game.say("Sem %s no inventário." % DB.item_name(id).to_lower())
 		return
-	match id:
-		"bandagem", "gaze":
-			var l := _worst_limb(d, func(limb: Dictionary) -> bool:
-				return int(limb["wound"]) > 0 and not limb["bandaged"])
-			if l == "":
-				Game.say("Nenhum ferimento para enfaixar.")
-			else:
-				p.act("treat", [l, "enfaixar", 0])
-			return
-		"antisseptico", "alcool":
-			var l2 := _worst_limb(d, func(limb: Dictionary) -> bool:
-				return int(limb["wound"]) > 0 and not limb["disinfected"])
-			if l2 == "":
-				Game.say("Nenhum ferimento para desinfetar.")
-			else:
-				p.act("treat", [l2, "desinfetar", 0])
-			return
-		"tala":
-			var l3 := _worst_limb(d, func(limb: Dictionary) -> bool:
-				return int(limb.get("osso", 0)) > 0 and not limb.get("tala", false))
-			if l3 == "":
-				Game.say("Nenhum osso para imobilizar.")
-			else:
-				p.act("treat", [l3, "imobilizar", 0])
-			return
-		"antibiotico":
-			p.act("treat", ["torso", "antibiotico", 0])
-			return
+	if String(Items.def(id).get("tipo", "")) == "med":
+		var why := d.med_useless(id)
+		if why != "":
+			Game.say(why)
+		else:
+			p.act("treat", [id, 0])
+		return
 	if _verb_for(d, inst) == "":
 		Game.say("%s não tem uso rápido." % DB.item_name(id))
 		return
 	p.act("use_item", [int(inst["u"])])
-
-
-## Membro mais ferido que atende à condição ("" = nenhum).
-func _worst_limb(d: SurvivorData, ok: Callable) -> String:
-	var best := ""
-	var worst := 1e9
-	for l in SurvivorData.LIMBS:
-		var limb: Dictionary = d.limbs[l]
-		if ok.call(limb) and float(limb["hp"]) - float(limb["bleed"]) * 10.0 < worst:
-			worst = float(limb["hp"]) - float(limb["bleed"]) * 10.0
-			best = l
-	return best
 
 
 # ------------------------------------------------------------------ modo construção
@@ -1637,24 +1601,21 @@ func _update_effects(d: SurvivorData, spore: float) -> void:
 		list.append(["panela", "BEM ALIMENTADO %ds" % int(d.well_fed_t), OK_COLOR])
 	if d.pain_t > 0.0:
 		list.append(["antibiotico", "ANALGÉSICO %ds" % int(d.pain_t), OK_COLOR])
+	if d.stam_t > 0.0:
+		list.append(["estamina", "REVIGORADO %ds" % int(d.stam_t), Color("#e6d26a")])
+	if d.regen_t > 0.0:
+		list.append(["vida", "CURANDO +%.1f/s · %ds" % [d.regen_rate, int(d.regen_t)], OK_COLOR])
 	if d.overloaded():
 		list.append(["cerebro", "COLAPSO NERVOSO", UITheme.MAGENTA])
 	elif d.synaptic > 60.0:
 		list.append(["cerebro", "TENSÃO NERVOSA %d%%" % int(d.synaptic), UITheme.MAGENTA])
 	if d.pathogen > 75.0:
 		list.append(["contaminacao", "CARGA CRÍTICA", UITheme.DANGER])
-	var bleeding := false
-	var infected := false
-	for l in SurvivorData.LIMBS:
-		var limb: Dictionary = d.limbs[l]
-		if int(limb["wound"]) > 0 and float(limb["bleed"]) > 0.0 and not (limb["bandaged"] and int(limb["wound"]) == 1):
-			bleeding = true
-		if float(limb["infection"]) >= 50.0:
-			infected = true
-	if bleeding:
-		list.append(["sangue", "SANGRANDO", UITheme.LIFE])
-	if infected:
-		list.append(["alerta", "INFECÇÃO EM FERIDA", UITheme.WARN])
+	if d.bleed > 0.0:
+		list.append(["sangue", "SANGRAMENTO %s" % d.bleed_text().to_upper(), UITheme.LIFE])
+	if d.perna > 0:
+		list.append(["alerta", SurvivorData.PERNA_NAMES[d.perna].to_upper() + (" (TALA %d%%)" % int(d.osso_t) if d.tala else ""),
+			UITheme.WARN if d.tala or d.perna == 1 else UITheme.DANGER])
 	if d.heat > 70.0:
 		list.append(["calor", "SUPERAQUECIMENTO", UITheme.WARN])
 	if d.molhado > 30.0:
@@ -1671,8 +1632,6 @@ func _update_effects(d: SurvivorData, spore: float) -> void:
 		list.append(["alerta", "PÉ FERIDO (LENTO)", UITheme.WARN])
 	if d.suppress_t > 0.0:
 		list.append(["supressor", "SUPRESSOR %ds" % int(d.suppress_t), UITheme.CONTAMINATION])
-	if d.antibiotic_t > 0.0:
-		list.append(["antibiotico", "ANTIBIÓTICO %ds" % int(d.antibiotic_t), OK_COLOR])
 	var key := str(list)
 	if key == _effects_key:
 		return
@@ -1772,10 +1731,9 @@ func _rebuild() -> void:
 	var saved := _scroll_state(tab_c)
 	match tabs.current_tab:
 		0: _tab_inventory(d)
-		1: _tab_body(d)
-		2: _tab_skills(d)
-		3: _tab_implants(d)
-		4: _tab_map(p)
+		1: _tab_skills(d)
+		2: _tab_implants(d)
+		3: _tab_map(p)
 	_restore_scroll(tab_c, saved)
 
 
@@ -1846,7 +1804,10 @@ func _tab_inventory(d: SurvivorData) -> void:
 	var looting := loot_node != null and is_instance_valid(loot_node)
 	if looting:
 		_loot_grid(_scroll_col(cols, 560), d)
-	_inventory_grid(_scroll_col(cols, 560), d, looting)
+	var inv_col := _scroll_col(cols, 560)
+	if not looting:
+		_equipment(inv_col, d)
+	_inventory_grid(inv_col, d, looting)
 	if not looting:
 		_crafting(_scroll_col(cols, 0), d)
 
@@ -2064,7 +2025,13 @@ func slot_menu(sl: InvSlot) -> void:
 			var u := int(inst["u"])
 			var n2 := int(inst["n"])
 			var verb := _verb_for(d, inst)
-			if verb != "":
+			var iid: String = inst["id"]
+			if String(Items.def(iid)["tipo"]) == "med":
+				opts.append(["Usar em você", func() -> void: p.act("treat", [iid, 0])])
+				for ally in _nearby_allies(p):
+					var ap := ally.peer
+					opts.append(["Usar em %s" % (ally.data.nome if ally.data != null else Net.name_of(ap)), func() -> void: p.act("treat", [iid, ap])])
+			elif verb != "":
 				opts.append([verb, func() -> void: p.act("use_item", [u])])
 			var rl := _repair_label(d, inst)
 			if rl != "":
@@ -2305,7 +2272,8 @@ func _verb_for(d: SurvivorData, inst: Dictionary) -> String:
 		"lanterna": return "Apagar" if d.light_u == u else "Acender"
 		"pilha": return "Pôr na lanterna" if d.count("lanterna") > 0 else ""
 		"cantil": return "Beber" if float(inst.get("carga", 0.0)) >= 1.0 else ("Encher" if d.count("agua_limpa") > 0 else "")
-		"analgesico": return "Tomar"
+		"med": return "Usar"
+		"estimulante": return "Tomar"
 		"regador": return "Encher" if float(inst.get("carga", 0.0)) < 99.0 and d.count("agua_suja") + d.count("agua_limpa") > 0 else ""
 	return ""
 
@@ -2323,65 +2291,6 @@ func _nearby_allies(p: Player) -> Array[Player]:
 	return out
 
 
-func _tab_body(d: SurvivorData) -> void:
-	var box: VBoxContainer = boxes["corpo"]
-	_clear(box)
-	var p := _player()
-	# escolha do paciente
-	var allies := _nearby_allies(p)
-	var sel := _hbox(8)
-	box.add_child(sel)
-	sel.add_child(_sec_title("PACIENTE"))
-	var ids: Array[int] = [0]
-	for o in allies:
-		ids.append(o.peer)
-	if not patient_peer in ids:
-		patient_peer = 0
-	for pid in ids:
-		var b := Button.new()
-		b.toggle_mode = true
-		b.button_pressed = pid == patient_peer
-		var nm := "VOCÊ" if pid == 0 else Net.name_of(pid).to_upper()
-		if pid != 0 and patient_info.has(pid):
-			nm = String(patient_info[pid]["nome"]).to_upper()
-		b.text = nm
-		var pp := pid
-		b.pressed.connect(func() -> void:
-			patient_peer = pp
-			if pp != 0:
-				_player().act("examine", [pp])
-			_rebuild())
-		sel.add_child(b)
-	if allies.is_empty():
-		_lbl(sel, "Chegue perto de um aliado para tratá-lo.", UITheme.MUTED)
-	var target := 0
-	var limbs: Dictionary = d.limbs
-	var pname := "você"
-	var blood := d.blood
-	var pathogen := d.pathogen
-	var antib := d.antibiotic_t
-	if patient_peer != 0:
-		p.act("examine", [patient_peer])
-		if not patient_info.has(patient_peer):
-			_lbl(box, "Examinando o paciente...", UITheme.MUTED)
-			return
-		var info: Dictionary = patient_info[patient_peer]
-		target = patient_peer
-		limbs = info["limbs"]
-		pname = str(info["nome"])
-		blood = float(info["blood"])
-		pathogen = float(info["pathogen"])
-		antib = float(info["antibiotic_t"])
-	var cols := _hbox(14)
-	cols.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	box.add_child(cols)
-	if target == 0:
-		_body_equipment(cols, d)
-	_body_limbs(cols, d, limbs, target, pname, blood, pathogen, antib)
-	if target != 0:
-		_patient_surgery(box, d, target)
-
-
 func _sec_title(text: String) -> Label:
 	var l := _label(text, S, UITheme.ACCENT)
 	l.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -2395,32 +2304,28 @@ func _card(parent: Control, pad := Vector4(14, 10, 14, 12)) -> PanelContainer:
 	return c
 
 
-## Coluna de equipamento: espaços de roupa (e a máscara), conjuntos e roupas no inventário.
-func _body_equipment(cols: HBoxContainer, d: SurvivorData) -> void:
-	var panel := _card(cols)
-	panel.custom_minimum_size.x = 600
-	var v := _vbox(8)
-	panel.add_child(v)
-	v.add_child(_sec_title("EQUIPAMENTO"))
+## Equipamento no topo do inventário: espaços de roupa e máscara (botão direito: tirar ou
+## consertar), a proteção total, os conjuntos e os bônus.
+func _equipment(box: VBoxContainer, d: SurvivorData) -> void:
+	var head := _hbox(10)
+	box.add_child(head)
+	head.add_child(_sec_title("EQUIPAMENTO"))
+	var arm := d.armor()
+	_lbl(head, "Proteção: %d%% do dano · %d%% menos chance de sangrar" % [int(float(arm[0]) * 100.0), int(float(arm[1]) * 100.0)], UITheme.MUTED)
 	var grid := GridContainer.new()
 	grid.columns = 2
-	grid.add_theme_constant_override("h_separation", 10)
-	grid.add_theme_constant_override("v_separation", 10)
-	v.add_child(grid)
+	grid.add_theme_constant_override("h_separation", 6)
+	grid.add_theme_constant_override("v_separation", 6)
+	box.add_child(grid)
 	for slot: String in ["cabeca", "mascara", "torso", "maos", "pernas", "pes"]:
 		_body_slot(grid, d, slot)
-	# conjuntos
-	var any_set := false
 	for cj: String in DB.CONJUNTOS:
 		var n := d.set_pieces(cj)
 		if n <= 0:
 			continue
-		if not any_set:
-			v.add_child(_sec_title("CONJUNTOS"))
-			any_set = true
 		var total := (DB.CONJUNTOS[cj]["pecas"] as Array).size()
 		var full := n >= total
-		_lbl(v, "%s %d/%d · %s%s" % [DB.CONJUNTOS[cj]["nome"], n, total, DB.CONJUNTOS[cj]["desc"],
+		_lbl(box, "%s %d/%d · %s%s" % [DB.CONJUNTOS[cj]["nome"], n, total, DB.CONJUNTOS[cj]["desc"],
 			" · ATIVO" if full else " (complete para ativar)"], OK_COLOR if full else UITheme.MUTED)
 	var bon: Array[String] = []
 	for k: String in DB.BONUS_NAMES:
@@ -2428,33 +2333,14 @@ func _body_equipment(cols: HBoxContainer, d: SurvivorData) -> void:
 		if b > 0.001:
 			bon.append("%s +%d%%" % [DB.BONUS_NAMES[k], int(round(b * 100.0))])
 	if not bon.is_empty():
-		_lbl(v, "Bônus: " + " · ".join(bon), UITheme.ACCENT)
-	# roupas guardadas
-	var spare: Array = []
-	for c: String in d.bags:
-		for inst: Dictionary in d.bags[c]:
-			if String(Items.def(inst["id"]).get("tipo", "")) == "roupa":
-				spare.append(inst)
-	if not spare.is_empty():
-		v.add_child(_sec_title("NO INVENTÁRIO"))
-		for inst: Dictionary in spare:
-			var row := _hbox(8)
-			v.add_child(row)
-			row.add_child(_item_icon(inst["id"], 36))
-			var t := _label("%s · %s" % [DB.item_name(inst["id"]), Items.cloth_text(inst["id"]).get_slice("\n", 0)], S, UITheme.TEXT)
-			t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			t.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-			t.clip_text = true
-			row.add_child(t)
-			var u := int(inst["u"])
-			_btn(row, "Vestir", _act(func() -> void: _player().act("use_item", [u])))
+		_lbl(box, "Bônus: " + " · ".join(bon), UITheme.ACCENT)
 
 
 ## Um espaço de roupa: o item (menu com botão direito, como no inventário) e a proteção.
 func _body_slot(grid: GridContainer, d: SurvivorData, slot: String) -> void:
 	var inst: Dictionary = d.equip[slot]
 	var nb := _card(grid, Vector4(6, 6, 10, 6))
-	nb.custom_minimum_size = Vector2(280, 0)
+	nb.custom_minimum_size = Vector2(268, 0)
 	var row := _hbox(8)
 	nb.add_child(row)
 	var sl := InvSlot.new()
@@ -2484,126 +2370,6 @@ func _body_slot(grid: GridContainer, d: SurvivorData, slot: String) -> void:
 	var worn := float(inst.get("dur", 100.0)) <= 0.0
 	info.add_child(_label("DEF %d%% · CORTE %d%%%s" % [int(float(dd.get("def", 0.0)) * k * 100.0), int(float(dd.get("corte", 0.0)) * k * 100.0),
 		" · FARRAPOS" if worn else ""], S, UITheme.DANGER if worn else UITheme.MUTED))
-
-
-## Membros: os seis em linha (só o nome; contorno vermelho pulsando quando machucado) e,
-## embaixo, os detalhes e o tratamento do membro escolhido.
-func _body_limbs(cols: HBoxContainer, d: SurvivorData, limbs: Dictionary, target: int, pname: String,
-		blood: float, pathogen: float, antib: float) -> void:
-	var panel := _card(cols)
-	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var v := _vbox(10)
-	panel.add_child(v)
-	v.add_child(_sec_title("CORPO · %s" % pname.to_upper()))
-	var vit := _hbox(10)
-	v.add_child(vit)
-	vit.add_child(UITheme.icon_rect("sangue", UITheme.LIFE, 28))
-	_bar(vit, blood, 100.0, UITheme.LIFE, 150, 10)
-	vit.add_child(UITheme.icon_rect("contaminacao", UITheme.CONTAMINATION, 28))
-	_bar(vit, pathogen, 100.0, UITheme.CONTAMINATION, 150, 10)
-	var line := HBoxContainer.new()
-	line.add_theme_constant_override("separation", 8)
-	v.add_child(line)
-	if not body_sel in SurvivorData.LIMBS:
-		body_sel = "torso"
-	# começa no membro mais grave
-	if body_auto:
-		var worst := ""
-		var wv := 0.0
-		for l: String in SurvivorData.LIMBS:
-			var sc := _limb_severity(limbs[l])
-			if sc > wv:
-				wv = sc
-				worst = l
-		if worst != "":
-			body_sel = worst
-	for l: String in SurvivorData.LIMBS:
-		var limb: Dictionary = limbs[l]
-		var hurt := _limb_severity(limb) > 0.0
-		var nb := NeonBox.new()
-		nb.clickable = true
-		nb.pulse = hurt
-		nb.selected = l == body_sel
-		nb.pad = Vector4(6, 10, 6, 10)
-		nb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		line.add_child(nb)
-		var nl := _label(String(SurvivorData.LIMB_NAMES[l]).to_upper(), S,
-			NeonBox.NEON.lerp(Color.WHITE, 0.35) if hurt else (UITheme.TEXT if l == body_sel else UITheme.MUTED))
-		nl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		nl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		nb.add_child(nl)
-		var ll := l
-		nb.pressed.connect(func() -> void:
-			body_sel = ll
-			body_auto = false
-			_rebuild())
-	_limb_detail(v, d, limbs[body_sel], body_sel, target)
-	var top := _hbox(10)
-	v.add_child(top)
-	top.add_child(_item_icon("antibiotico", 40))
-	_btn(top, "Antibiótico (x%d)" % d.count("antibiotico"), _act(func() -> void: _player().act("treat", ["torso", "antibiotico", target])), d.count("antibiotico") > 0)
-	_lbl(top, "Ativo por %ds" % int(antib) if antib > 0.0 else "Cura sepse e infecção fúngica.", UITheme.MUTED)
-	_lbl(v, "Nem todo golpe abre ferida; com uma ferida aberta, novos cortes pioram a mesma. A bandagem segura o sangramento e fecha a ferida com o tempo; torções e fraturas pedem tala. Você usa os seus suprimentos e a sua Medicina.", UITheme.MUTED)
-
-
-## 0 = saudável; > 0 = machucado (ferida, infecção ou vida baixa).
-func _limb_severity(limb: Dictionary) -> float:
-	var s := 0.0
-	if int(limb["wound"]) > 0:
-		s += 50.0 * float(limb["wound"]) + float(limb["bleed"]) * 100.0
-	if float(limb["infection"]) > 10.0:
-		s += float(limb["infection"])
-	if float(limb["hp"]) < 70.0:
-		s += 70.0 - float(limb["hp"])
-	s += 40.0 * float(limb.get("osso", 0))
-	return s
-
-
-func _limb_detail(v: VBoxContainer, d: SurvivorData, limb: Dictionary, l: String, target: int) -> void:
-	var hurt := _limb_severity(limb) > 0.0
-	var card := _card(v, Vector4(14, 10, 14, 10))
-	var cv := _vbox(8)
-	card.add_child(cv)
-	var head := _hbox(12)
-	cv.add_child(head)
-	var title := _label(String(SurvivorData.LIMB_NAMES[l]).to_upper(), L, UITheme.TEXT)
-	head.add_child(title)
-	var hp := float(limb["hp"])
-	var hcol := OK_COLOR if hp > 50.0 else UITheme.WARN if hp > 20.0 else UITheme.DANGER
-	var hb := _bar(head, hp, 100.0, hcol, 220, 12)
-	hb.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	var hl := _label("%d%%" % int(hp), S, hcol)
-	hl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	head.add_child(hl)
-	var st: Array[String] = []
-	if int(limb["wound"]) == 2:
-		st.append("ferida PROFUNDA")
-	elif int(limb["wound"]) == 1:
-		st.append("ferida leve")
-	if int(limb["wound"]) > 0 and float(limb["bleed"]) > 0.0 and not (limb["bandaged"] and int(limb["wound"]) == 1):
-		st.append("sangrando (%.1f/s)" % (float(limb["bleed"]) * (0.15 if limb["bandaged"] else 1.0)))
-	if float(limb["infection"]) > 1.0:
-		st.append("infecção %d%%" % int(limb["infection"]))
-	if limb["disinfected"]:
-		st.append("desinfetado")
-	if limb["bandaged"]:
-		st.append("enfaixado")
-	var osso := int(limb.get("osso", 0))
-	if osso > 0:
-		st.append(("FRATURA" if osso == 2 else "torção") + (" imobilizada (%d%%)" % int(float(limb.get("osso_t", 0.0))) if limb.get("tala", false) else ""))
-	var stt := ", ".join(st)
-	_lbl(cv, "Saudável." if st.is_empty() else stt.left(1).to_upper() + stt.substr(1) + ".", UITheme.MUTED if st.is_empty() else UITheme.WARN)
-	if target == 0:
-		var arm := d.limb_armor(l)
-		_lbl(cv, "Proteção da roupa: %d%% do dano · %d%% menos chance de sangrar" % [int(float(arm[0]) * 100.0), int(float(arm[1]) * 100.0)], UITheme.MUTED)
-	var bt := _hbox(8)
-	cv.add_child(bt)
-	var wounded := int(limb["wound"]) > 0
-	_btn(bt, "Desinfetar", _act(func() -> void: _player().act("treat", [l, "desinfetar", target])), wounded and d.count("antisseptico") + d.count("alcool") > 0)
-	_btn(bt, "Enfaixar", _act(func() -> void: _player().act("treat", [l, "enfaixar", target])), wounded and not limb["bandaged"] and d.count("bandagem") + d.count("gaze") > 0)
-	if l in SurvivorData.BONE_LIMBS:
-		_btn(bt, "Imobilizar (tala x%d)" % d.count("tala"), _act(func() -> void: _player().act("treat", [l, "imobilizar", target])),
-			osso > 0 and not limb.get("tala", false) and d.count("tala") > 0)
 
 
 ## Cirurgia no aliado: remover implantes dele ou instalar um dos seus.
@@ -3049,6 +2815,48 @@ func _tab_implants(d: SurvivorData) -> void:
 					_btn(row2, "Instalar", _act(func() -> void: _player().act("install", [id])), d.count("kit_cirurgico") > 0)
 			if not found:
 				_lbl(box, "Vazio. Encontre uma prótese e um kit cirúrgico.", UITheme.MUTED)
+	_patient_panel(box, d)
+
+
+## Cirurgia num aliado próximo: escolha o paciente e opere (próteses dele ou suas).
+func _patient_panel(box: VBoxContainer, d: SurvivorData) -> void:
+	var p := _player()
+	var allies := _nearby_allies(p)
+	_head(box, "Cirurgia em aliado")
+	if allies.is_empty():
+		patient_peer = 0
+		_lbl(box, "Chegue perto de um aliado para operar nele. Curativos e remédios em aliados: botão direito no item, \"Usar em...\".", UITheme.MUTED)
+		return
+	var sel := _hbox(8)
+	box.add_child(sel)
+	var ids: Array[int] = []
+	for o in allies:
+		ids.append(o.peer)
+	if not patient_peer in ids:
+		patient_peer = ids[0]
+	for pid in ids:
+		var b := Button.new()
+		b.toggle_mode = true
+		b.button_pressed = pid == patient_peer
+		b.text = (String(patient_info[pid]["nome"]) if patient_info.has(pid) else Net.name_of(pid)).to_upper()
+		var pp := pid
+		b.pressed.connect(func() -> void:
+			patient_peer = pp
+			_player().act("examine", [pp])
+			_rebuild())
+		sel.add_child(b)
+	p.act("examine", [patient_peer])
+	if not patient_info.has(patient_peer):
+		_lbl(box, "Examinando o paciente...", UITheme.MUTED)
+		return
+	var info: Dictionary = patient_info[patient_peer]
+	var st := "Vida %d" % int(info.get("hp", 0.0))
+	if float(info.get("bleed", 0.0)) > 0.0:
+		st += " · sangrando"
+	if int(info.get("perna", 0)) > 0:
+		st += " · " + String(SurvivorData.PERNA_NAMES[int(info["perna"])]).to_lower() + (" (tala)" if info.get("tala", false) else "")
+	_lbl(box, st, UITheme.TEXT)
+	_patient_surgery(box, d, patient_peer)
 
 
 func _tab_vehicle(p: Player) -> void:

@@ -497,7 +497,7 @@ func interact(player: Player) -> void:
 		"cama":
 			var d := player.data
 			d.stamina = d.max_stamina()
-			d.blood = minf(100.0, d.blood + 5.0)
+			d.hp = minf(SurvivorData.MAX_HP, d.hp + 5.0)
 			Game.tell(player.peer, "Você descansou. Sobreviventes novos da equipe acordam numa cama.")
 			return
 		"porta":
@@ -584,7 +584,7 @@ func _physics_process(delta: float) -> void:
 				if Vector2(o3.x, o3.y * 2.0).length() < 24.0 and p2.data != null and p2.data.trap_cd <= 0.0:
 					p2.data.trap_cd = 1.2
 					p2.data.slow_t = 3.0
-					p2.server_hurt(["perna_e", "perna_d"][randi() % 2], 6.0, 0.0)
+					p2.server_hurt(6.0, 0.0)
 					Game.tell(p2.peer, "Você pisou nos espetos!")
 					p2._sync_t = 0.0
 			for n4 in get_tree().get_nodes_in_group("raiders"):

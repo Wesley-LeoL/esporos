@@ -382,10 +382,10 @@ func _attack(target: Node2D) -> void:
 	var amount := dmg * randf_range(0.8, 1.25)
 	if target is Player:
 		var pl := target as Player
-		var limbs: Array = ["torso", "torso", "braco_e", "braco_d", "perna_e", "perna_d", "cabeca"]
-		if kind == "rastejante":
-			limbs = ["perna_e", "perna_d"]
-		pl.server_hurt(limbs[randi() % limbs.size()], amount, 4.0 if elite else 2.5)
+		pl.server_hurt(amount, 4.0 if elite else 2.5)
+		# o rastejante morde as pernas: às vezes torce o tornozelo
+		if kind == "rastejante" and randf() < 0.12 and pl.data != null:
+			pl.data.injure_leg(1)
 		# o comum pode agarrar no golpe: o jogador fica preso até se soltar (F empurra)
 		if randf() < float(KINDS[kind].get("agarra", 0.0)) and pl.data.grab_t <= 0.0:
 			pl.data.grab_t = 2.2

@@ -1,15 +1,21 @@
 class_name SurvivorData
 extends RefCounted
-## Estado completo de um sobrevivente: metabolismo, carga patogênica, medicina por
-## membros, cibernética, habilidades e inventário. Não depende de nós da cena.
+## Estado completo de um sobrevivente: metabolismo, carga patogênica, saúde (vida,
+## sangramento e perna machucada), próteses, habilidades e inventário. Não depende de nós da cena.
 
 signal message(text: String)
 ## Itens que não couberam (o Player larga no chão num saco).
 signal overflow(items: Array)
 
-const LIMBS: Array[String] = ["cabeca", "torso", "braco_e", "braco_d", "perna_e", "perna_d"]
-const LIMB_NAMES := {"cabeca": "Cabeça", "torso": "Tronco", "braco_e": "Braço esq.", "braco_d": "Braço dir.",
-	"perna_e": "Perna esq.", "perna_d": "Perna dir."}
+## Saúde: uma vida só (0-100). Golpes tiram vida e podem abrir sangramento (que tira vida
+## por segundo e piora com novos cortes). Quedas torcem ou quebram a perna. Não há membros.
+const MAX_HP := 100.0
+## Partes do corpo só para a proteção das roupas: quanto de cada golpe cai em cada parte.
+const ZONES := {"cabeca": 0.15, "torso": 0.35, "braco_e": 0.1, "braco_d": 0.1, "perna_e": 0.15, "perna_d": 0.15}
+## Sangramento (vida por segundo): até LEVE estanca sozinho devagar.
+const BLEED_LEVE := 0.12
+const BLEED_GRAVE := 0.4
+const PERNA_NAMES := ["", "Perna torcida", "Perna quebrada"]
 const NAMES: Array[String] = ["Ayla Moreno", "Kael Ribeiro", "Dara Voss", "Mateo Quintana", "Iris Okafor",
 	"Bruno Takeda", "Nina Falk", "Orion Duarte", "Lena Sato", "Teo Marques", "Zara Lindqvist", "Caio Brandt"]
 const MAX_CAL := 2000.0
@@ -25,8 +31,19 @@ var nome: String = "Sobrevivente"
 var pathogen: float = 10.0
 var calories: float = 1600.0
 var water: float = 80.0
-var blood: float = 100.0
-var limbs := {}
+var hp: float = MAX_HP
+## Vida perdida por segundo pelo sangramento (0 = não sangra).
+var bleed: float = 0.0
+## Perna: 0 = boa, 1 = torcida, 2 = quebrada. tala = imobilizada; osso_t = cura (0-100).
+var perna: int = 0
+var tala: bool = false
+var osso_t: float = 0.0
+## Cura por segundo (antibiótico e curativos fortes) por regen_t segundos.
+var regen_rate: float = 0.0
+var regen_t: float = 0.0
+## Estamina: a recuperação é multiplicada por stam_mult por stam_t segundos (energético, adrenalina).
+var stam_mult: float = 1.0
+var stam_t: float = 0.0
 var skills := {}
 ## Atributos da criação (2 a 9, base 5) e traços escolhidos (ver DB.TRAITS).
 var forca: int = 5
@@ -45,7 +62,6 @@ var hotbar: Array = ["", "", "", "", ""]
 var _next_u: int = 1
 var suppress_t: float = 0.0
 var tainted_t: float = 0.0
-var antibiotic_t: float = 0.0
 var battery: float = 0.0
 var heat: float = 0.0
 var implants := {}
@@ -82,9 +98,6 @@ var _last_hurt_cause: String = "Trauma"
 
 func _init() -> void:
 	rng.randomize()
-	for l in LIMBS:
-		limbs[l] = {"hp": 100.0, "wound": 0, "bleed": 0.0, "infection": 0.0,
-			"disinfected": false, "bandaged": false, "heal": 0.0, "osso": 0, "tala": false, "osso_t": 0.0}
 	for s in DB.SKILLS:
 		skills[s] = {"lv": 0, "xp": 0.0}
 
@@ -369,8 +382,8 @@ static func cloth_cond(inst: Dictionary) -> float:
 	return 0.4 + 0.6 * clampf(float(inst.get("dur", 100.0)) / 100.0, 0.0, 1.0)
 
 
-## [dano evitado, chance de sangrar evitada] num membro, somando as roupas que o cobrem.
-func limb_armor(limb_id: String) -> Array:
+## [dano evitado, chance de sangrar evitada] numa parte do corpo, somando as roupas que a cobrem.
+func zone_armor(limb_id: String) -> Array:
 	var keep_d := 1.0
 	var keep_c := 1.0
 	for slot: String in DB.ROUPA_SLOTS:
@@ -385,6 +398,17 @@ func limb_armor(limb_id: String) -> Array:
 		keep_d *= 1.0 - float(d.get("def", 0.0)) * c
 		keep_c *= 1.0 - float(d.get("corte", 0.0)) * c
 	return [minf(0.8, 1.0 - keep_d), minf(0.85, 1.0 - keep_c)]
+
+
+## Proteção total da roupa: [dano evitado, chance de sangrar evitada], média das partes do
+## corpo pelo quanto cada uma é atingida.
+func armor() -> Array:
+	var a := [0.0, 0.0]
+	for z: String in ZONES:
+		var za := zone_armor(z)
+		a[0] += float(za[0]) * float(ZONES[z])
+		a[1] += float(za[1]) * float(ZONES[z])
+	return a
 
 
 ## Peças vestidas de um conjunto.
@@ -412,27 +436,28 @@ func gear_bonus(kind: String) -> float:
 	return b
 
 
-## Gasta as roupas que cobrem o membro atingido.
-func _wear_clothes(limb_id: String, amount: float) -> void:
+## Gasta as roupas com um golpe (cada peça pelo quanto do corpo ela cobre).
+func _wear_clothes(amount: float) -> void:
 	for slot: String in DB.ROUPA_SLOTS:
 		var inst: Dictionary = equip[slot]
-		if inst.is_empty() or float(DB.ROUPA_COBRE[slot].get(limb_id, 0.0)) <= 0.0:
+		if inst.is_empty():
+			continue
+		var share := 0.0
+		for z: String in DB.ROUPA_COBRE[slot]:
+			share += float(DB.ROUPA_COBRE[slot][z]) * float(ZONES.get(z, 0.0))
+		if share <= 0.0:
 			continue
 		var before := float(inst.get("dur", 100.0))
-		inst["dur"] = maxf(0.0, before - amount * (0.25 + float(Items.def(inst["id"]).get("def", 0.0))))
+		inst["dur"] = maxf(0.0, before - amount * share * 2.0 * (0.25 + float(Items.def(inst["id"]).get("def", 0.0))))
 		if before > 0.0 and float(inst["dur"]) <= 0.0:
 			message.emit("%s está em farrapos: protege bem menos (conserte com fita)." % DB.item_name(inst["id"]))
 
 
-## Membro com ferida aberta que mais sangra ("" = nenhum).
-func bleeding_limb() -> String:
-	var best := ""
-	var bb := -1.0
-	for l in LIMBS:
-		if int(limbs[l]["wound"]) > 0 and float(limbs[l]["bleed"]) > bb:
-			bb = float(limbs[l]["bleed"])
-			best = l
-	return best
+## Sangramento em palavras ("" = não sangra).
+func bleed_text() -> String:
+	if bleed <= 0.0:
+		return ""
+	return "leve" if bleed < BLEED_LEVE else ("grave" if bleed >= BLEED_GRAVE else "moderado")
 
 
 ## Chave que abre a fechadura 'lock' ({} = não tem).
@@ -636,7 +661,7 @@ func tick(delta: float, env: Dictionary) -> void:
 	_tick_implants(delta, moving or env.get("combat", false))
 	_tick_neural(delta)
 	_tick_pathogen(delta, spore, env.get("purifier", false))
-	_tick_wounds(delta, spore)
+	_tick_health(delta)
 	_tick_body(delta, env)
 	_check_death()
 
@@ -687,7 +712,7 @@ func _tick_body(delta: float, env: Dictionary) -> void:
 	elif temp_corpo < 37.0:
 		temp_corpo = minf(37.0, temp_corpo + (0.02 + maxf(0.0, feel - 18.0) * 0.004) * delta)
 	if temp_corpo < 34.0:
-		_hurt_internal("torso", (0.05 if temp_corpo >= 32.0 else 0.25) * delta, "Hipotermia")
+		_hurt((0.05 if temp_corpo >= 32.0 else 0.25) * delta, "Hipotermia")
 		_warn("hipotermia", "HIPOTERMIA! Procure abrigo, fogo e roupa seca.", 25.0)
 	elif temp_corpo < 35.5:
 		_warn("frio", "Você está com frio.", 60.0)
@@ -699,11 +724,10 @@ func _warn(key: String, text: String, cooldown: float = 40.0) -> void:
 		message.emit(text)
 
 
-func _hurt_internal(limb_id: String, amount: float, cause: String) -> void:
+func _hurt(amount: float, cause: String) -> void:
 	if god:
 		return
-	var limb: Dictionary = limbs[limb_id]
-	limb["hp"] = maxf(0.0, float(limb["hp"]) - amount)
+	hp = maxf(0.0, hp - amount)
 	_last_hurt_cause = cause
 
 
@@ -713,6 +737,11 @@ func _tick_gear(delta: float) -> void:
 	grab_t = maxf(0.0, grab_t - delta)
 	slow_t = maxf(0.0, slow_t - delta)
 	trap_cd = maxf(0.0, trap_cd - delta)
+	if stam_t > 0.0:
+		stam_t = maxf(0.0, stam_t - delta)
+		if stam_t <= 0.0:
+			stam_mult = 1.0
+			message.emit("O efeito do estimulante passou.")
 	well_fed_t = maxf(0.0, well_fed_t - delta)
 	if light_u != 0:
 		var f := find(light_u)
@@ -817,6 +846,8 @@ func _tick_stamina(delta: float, sprinting: bool) -> void:
 		regen *= 0.7
 	if well_fed_t > 0.0:
 		regen *= 1.5
+	if stam_t > 0.0:
+		regen *= stam_mult
 	stamina = minf(max_stamina(), stamina + regen * delta)
 
 
@@ -829,12 +860,12 @@ func _tick_metabolism(delta: float, moving: bool) -> void:
 	calories = maxf(0.0, calories - 0.55 * k * delta)
 	water = maxf(0.0, water - 0.11 * k * delta)
 	if calories <= 0.0:
-		_hurt_internal("torso", 1.0 * delta, "Fome")
+		_hurt(1.0 * delta, "Fome")
 		_warn("fome", "Você está morrendo de fome!")
 	elif calories < 400.0:
 		_warn("fome", "Você está com muita fome.")
 	if water <= 0.0:
-		_hurt_internal("torso", 1.5 * delta, "Sede")
+		_hurt(1.5 * delta, "Sede")
 		_warn("sede", "Você está desidratado!")
 	elif water < 20.0:
 		_warn("sede", "Você está com muita sede.")
@@ -871,9 +902,7 @@ func _tick_implants(delta: float, exerting: bool) -> void:
 	if battery <= 0.0 and drain == 0.0:
 		_warn("bateria", "A célula galvânica das próteses esgotou! Elas estão paradas.")
 	if heat > 70.0:
-		for slot in implants:
-			var def: Dictionary = DB.IMPLANTS[implants[slot]["id"]]
-			_hurt_internal(def["membro"], 0.6 * delta, "Superaquecimento das próteses")
+		_hurt(0.4 * delta * float(implants.size()), "Superaquecimento das próteses")
 		_warn("calor", "Superaquecimento! As engrenagens das próteses estão queimando sua pele.")
 
 
@@ -885,15 +914,6 @@ func immune_mult() -> float:
 	if heat > 70.0:
 		m += 0.5
 	return minf(m, 2.5)
-
-
-func limb_immune_mult(limb_id: String) -> float:
-	var m := 1.0
-	for slot in implants:
-		var def: Dictionary = DB.IMPLANTS[implants[slot]["id"]]
-		if def["membro"] == limb_id and implant_damaged(slot):
-			m += 1.5
-	return m
 
 
 func exposure_factor() -> float:
@@ -948,152 +968,93 @@ func _tick_pathogen(delta: float, spore: float, purifier: bool) -> void:
 		_warn("patogeno", "A carga patogênica está crítica!", 25.0)
 
 
-func _tick_wounds(delta: float, spore: float) -> void:
-	var total_bleed := 0.0
+## Vida, sangramento, cura e a perna machucada.
+func _tick_health(delta: float) -> void:
 	var healing_ok := calories > 300.0 and water > 15.0
-	var any_infection := false
-	for l in LIMBS:
-		var limb: Dictionary = limbs[l]
-		if int(limb["wound"]) > 0:
-			var b := float(limb["bleed"])
-			if limb["bandaged"]:
-				b *= 0.0 if int(limb["wound"]) == 1 else 0.15
-			total_bleed += b
-			var inf_rate := 0.4
-			if limb["disinfected"]:
-				inf_rate *= 0.1
-			if limb["bandaged"]:
-				inf_rate *= 0.6
-			inf_rate *= limb_immune_mult(l)
-			if antibiotic_t > 0.0:
-				limb["infection"] = maxf(0.0, float(limb["infection"]) - 1.2 * delta)
-			else:
-				limb["infection"] = minf(100.0, float(limb["infection"]) + inf_rate * delta)
-			if not limb["bandaged"] and spore > 0.25:
-				pathogen = minf(100.0, pathogen + spore * 0.8 * delta)
-				_warn("ferida_esporo", "Esporos entram pela ferida aberta! Enfaixe-a.", 20.0)
-			if limb["bandaged"] and float(limb["infection"]) < 25.0 and healing_ok:
-				# ferida profunda enfaixada fecha devagar e vira leve; a leve cicatriza
-				limb["heal"] = float(limb["heal"]) + (1.0 if int(limb["wound"]) == 1 else 0.5) * delta
-				if float(limb["heal"]) >= 100.0 and int(limb["wound"]) == 2:
-					limb["wound"] = 1
-					limb["heal"] = 0.0
-					limb["bleed"] = float(limb["bleed"]) * 0.3
-					message.emit("A ferida profunda em %s fechou um pouco: agora é leve." % LIMB_NAMES[l].to_lower())
-				elif float(limb["heal"]) >= 100.0:
-					limb["wound"] = 0
-					limb["bleed"] = 0.0
-					limb["heal"] = 0.0
-					limb["bandaged"] = false
-					limb["disinfected"] = false
-					message.emit("Ferida cicatrizada: %s." % LIMB_NAMES[l])
-		else:
-			limb["infection"] = maxf(0.0, float(limb["infection"]) - 0.5 * delta)
-		_tick_bone(l, limb, delta, healing_ok)
-		if float(limb["infection"]) >= 100.0:
-			_hurt_internal("torso", 1.2 * delta, "Sepse")
-			_warn("sepse", "SEPSE em %s! Use antibiótico." % LIMB_NAMES[l], 15.0)
-		elif float(limb["infection"]) >= 50.0:
-			any_infection = true
-	antibiotic_t = maxf(0.0, antibiotic_t - delta)
-	blood = clampf(blood - total_bleed * delta, 0.0, 100.0)
-	if total_bleed > 0.0 and blood < 50.0:
-		_warn("sangue", "Você está perdendo muito sangue!", 20.0)
-	if total_bleed == 0.0 and healing_ok:
-		blood = minf(100.0, blood + 0.03 * delta)
-		if not any_infection:
-			for l in LIMBS:
-				var limb: Dictionary = limbs[l]
-				if float(limb["hp"]) < 100.0 and int(limb["wound"]) < 2:
-					limb["hp"] = minf(100.0, float(limb["hp"]) + 0.12 * delta * 1.0)
+	if bleed > 0.0:
+		_hurt(bleed * delta, "Sangramento")
+		# sangramento leve estanca sozinho, devagar
+		if bleed < BLEED_LEVE:
+			bleed = maxf(0.0, bleed - 0.0006 * delta)
+			if bleed <= 0.0:
+				message.emit("O sangramento parou sozinho.")
+		elif hp < 40.0:
+			_warn("sangue", "Você está perdendo muito sangue! Use uma bandagem.", 20.0)
+	if regen_t > 0.0:
+		hp = minf(MAX_HP, hp + regen_rate * delta)
+		regen_t = maxf(0.0, regen_t - delta)
+	elif bleed <= 0.0 and healing_ok and hp < MAX_HP:
+		hp = minf(MAX_HP, hp + 0.04 * delta * (1.3 if well_fed_t > 0.0 else 1.0))
+	_tick_bone(delta, healing_ok)
 
 
-## Ossos: torção sara sozinha (mais rápido com tala); fratura só sara imobilizada.
-func _tick_bone(l: String, limb: Dictionary, delta: float, healing_ok: bool) -> void:
-	var o := int(limb.get("osso", 0))
-	if o == 0:
+## Perna: torção sara sozinha (mais rápido com tala); fratura só sara imobilizada.
+func _tick_bone(delta: float, healing_ok: bool) -> void:
+	if perna == 0:
 		return
 	var rate := 0.0
-	if o == 1:
-		rate = 100.0 / (90.0 if limb.get("tala", false) else 240.0)
-	elif limb.get("tala", false) and healing_ok:
+	if perna == 1:
+		rate = 100.0 / (90.0 if tala else 240.0)
+	elif tala and healing_ok:
 		rate = 100.0 / 600.0
-	limb["osso_t"] = float(limb.get("osso_t", 0.0)) + rate * delta
-	if float(limb["osso_t"]) >= 100.0:
-		limb["osso"] = 0
-		limb["osso_t"] = 0.0
-		limb["tala"] = false
-		message.emit("%s: o osso sarou%s." % [LIMB_NAMES[l], " (a tala foi tirada)" if o == 2 else ""])
-	elif o == 2 and not limb.get("tala", false):
-		_warn("fratura_" + l, "Fratura em %s: imobilize com uma tala (aba Corpo)." % LIMB_NAMES[l].to_lower(), 45.0)
+	osso_t += rate * delta
+	if osso_t >= 100.0:
+		var was := perna
+		perna = 0
+		osso_t = 0.0
+		tala = false
+		message.emit("A perna sarou%s." % (" (a tala foi tirada)" if was == 2 else ""))
+	elif perna == 2 and not tala:
+		_warn("fratura", "Perna quebrada: imobilize com uma tala.", 45.0)
 
 
-## Membros com osso (braços e pernas).
-const BONE_LIMBS: Array[String] = ["braco_e", "braco_d", "perna_e", "perna_d"]
-
-
-## Penalidade de um membro por osso: torção e fratura; a tala e o analgésico aliviam.
-func bone_penalty(l: String) -> float:
-	var limb: Dictionary = limbs[l]
-	var o := int(limb.get("osso", 0))
-	if o == 0:
+## Lentidão pela perna: torção e fratura; a tala e o analgésico aliviam.
+func leg_penalty() -> float:
+	if perna == 0:
 		return 0.0
-	var p := 0.15 if o == 1 else 0.35
-	if limb.get("tala", false):
-		p *= 0.4 if o == 1 else 0.55
+	var p := 0.15 if perna == 1 else 0.35
+	if tala:
+		p *= 0.4 if perna == 1 else 0.55
 	if pain_t > 0.0:
 		p *= 0.5
 	return p
 
 
-## Machuca um osso: 1 = torção, 2 = fratura (não piora o que já é pior).
-func break_bone(l: String, level_: int) -> void:
-	var limb: Dictionary = limbs[l]
-	if level_ <= int(limb.get("osso", 0)):
+## Machuca a perna: 1 = torção, 2 = fratura (não piora o que já é pior).
+func injure_leg(level_: int) -> void:
+	if level_ <= perna:
 		return
-	limb["osso"] = level_
-	limb["osso_t"] = 0.0
-	limb["tala"] = false
-	message.emit(("Você fraturou %s!" if level_ == 2 else "Você torceu %s.") % LIMB_NAMES[l].to_lower())
+	perna = level_
+	osso_t = 0.0
+	tala = false
+	message.emit("Você quebrou a perna!" if level_ == 2 else "Você torceu a perna.")
 
 
 ## Queda ou pulo de 'h' metros (andares, janelas, telhados). Abaixo de 2,5 m não machuca.
-## Atletismo amortece (0,3 m por nível). Pernas sofrem primeiro; quedas altas atingem o tronco.
+## Atletismo amortece (0,3 m por nível); as pernas pneumáticas também.
 func fall_injury(h: float) -> void:
 	if god:
 		return
+	var told := h
 	h -= 0.3 * float(level("atletismo"))
 	if implant_active("pernas"):
 		h -= 1.5
 	if h < 2.5:
 		return
-	var legs: Array[String] = ["perna_e", "perna_d"]
-	var a := legs[rng.randi() % 2]
-	var b := "perna_d" if a == "perna_e" else "perna_e"
-	_last_hurt_cause = "Queda"
 	if h < 4.0:
-		_hurt_internal(a, 6.0, "Queda")
+		_hurt(6.0, "Queda")
 		if rng.randf() < 0.55:
-			break_bone(a, 1)
+			injure_leg(1)
 	elif h < 7.0:
-		_hurt_internal(a, rng.randf_range(12.0, 22.0), "Queda")
-		_hurt_internal(b, rng.randf_range(4.0, 10.0), "Queda")
-		break_bone(a, 2 if rng.randf() < 0.45 else 1)
+		_hurt(rng.randf_range(15.0, 28.0), "Queda")
+		injure_leg(2 if rng.randf() < 0.45 else 1)
 	elif h < 11.0:
-		_hurt_internal(a, 28.0, "Queda")
-		_hurt_internal(b, 18.0, "Queda")
-		_hurt_internal("torso", 10.0, "Queda")
-		break_bone(a, 2)
-		break_bone(b, 2 if rng.randf() < 0.4 else 1)
+		_hurt(40.0, "Queda")
+		injure_leg(2)
 	else:
-		_hurt_internal(a, 45.0, "Queda")
-		_hurt_internal(b, 40.0, "Queda")
-		_hurt_internal("torso", 30.0 + (h - 11.0) * 9.0, "Queda")
-		break_bone(a, 2)
-		break_bone(b, 2)
-		if rng.randf() < 0.5:
-			break_bone(["braco_e", "braco_d"][rng.randi() % 2], 1)
-	message.emit("Queda de %.0f m!" % (h + 0.3 * float(level("atletismo"))))
+		_hurt(60.0 + (h - 11.0) * 9.0, "Queda")
+		injure_leg(2)
+	message.emit("Queda de %.0f m!" % told)
 
 
 func kill(cause: String, kind: String) -> void:
@@ -1106,13 +1067,11 @@ func _check_death() -> void:
 		return
 	if god:
 		pathogen = minf(pathogen, 99.0)
-		blood = maxf(blood, 1.0)
+		hp = maxf(hp, 1.0)
 		return
 	if pathogen >= 100.0:
 		_die("Carga patogênica em 100%", "infeccao")
-	elif blood <= 0.0:
-		_die("Sangramento", "fisica")
-	elif float(limbs["cabeca"]["hp"]) <= 0.0 or float(limbs["torso"]["hp"]) <= 0.0:
+	elif hp <= 0.0:
 		_die(_last_hurt_cause, "fisica")
 
 
@@ -1124,51 +1083,37 @@ func _die(cause: String, kind: String) -> void:
 
 
 # ---------------------------------------------------------------- combate
-## Golpe num membro. A roupa que cobre o membro reduz o dano e a chance de sangrar. Nem todo
-## golpe abre ferida: a chance cresce com o dano. Se já há uma ferida aberta, um novo corte
-## não abre outra: piora o sangramento da que já existe.
-func damage_limb(limb_id: String, amount: float) -> void:
+## Golpe. A roupa reduz o dano e a chance de sangrar. Nem todo golpe abre sangramento: a
+## chance cresce com o dano. Se já está sangrando, um novo corte piora o sangramento.
+func damage(amount: float, cause := "Trauma em combate") -> void:
 	if god:
 		return
 	if implant_active("pele"):
 		amount *= 0.75
-	var arm := limb_armor(limb_id)
+	var arm := armor()
 	var raw := amount
 	amount *= 1.0 - float(arm[0])
-	_wear_clothes(limb_id, raw)
-	var limb: Dictionary = limbs[limb_id]
-	limb["hp"] = maxf(0.0, float(limb["hp"]) - amount)
-	_last_hurt_cause = "Trauma em combate"
+	_wear_clothes(raw)
+	_hurt(amount, cause)
 	var p_bleed := 0.0
 	if amount >= 4.0:
 		p_bleed = clampf(0.1 + amount * 0.022, 0.0, 0.75) * (1.0 - float(arm[1]))
 		if has_trait("sangue_fino"):
 			p_bleed = minf(0.9, p_bleed * 1.25)
-	var text := "Golpe: %s (-%d)." % [LIMB_NAMES[limb_id], int(amount)]
+	var text := "Golpe (-%d)." % int(amount)
 	if rng.randf() < p_bleed:
-		var deep := amount >= 16.0
-		var add := amount * (0.035 if deep else 0.012) * (1.3 if has_trait("sangue_fino") else 1.0)
-		var open_l := bleeding_limb()
-		var wl := open_l if open_l != "" else limb_id
-		var w: Dictionary = limbs[wl]
-		if open_l != "":
-			# a ferida que já existe abre mais
-			w["bleed"] = float(w["bleed"]) + add * 0.8
-			if deep:
-				w["wound"] = 2
-			text = "O sangramento em %s piorou! (golpe em %s, -%d)" % [LIMB_NAMES[wl].to_lower(), LIMB_NAMES[limb_id].to_lower(), int(amount)]
+		var add := amount * (0.03 if amount >= 16.0 else 0.012) * (1.3 if has_trait("sangue_fino") else 1.0)
+		if bleed > 0.0:
+			bleed += add * 0.8
+			text = "O sangramento piorou! (-%d)" % int(amount)
 		else:
-			w["wound"] = 2 if deep else 1
-			w["bleed"] = add
-			w["disinfected"] = false
-			text = "%s: %s está sangrando (-%d)." % ["Corte profundo" if deep else "Corte", LIMB_NAMES[wl], int(amount)]
-		w["bandaged"] = false
-		w["heal"] = 0.0
+			bleed = add
+			text = "Você está sangrando (-%d)." % int(amount)
+	# próteses gastam com os golpes; a máscara perde vedação com golpes na cabeça
 	for slot in implants:
-		var def: Dictionary = DB.IMPLANTS[implants[slot]["id"]]
-		if def["membro"] == limb_id:
+		if rng.randf() < 0.3:
 			implants[slot]["integ"] = maxf(0.0, float(implants[slot]["integ"]) - amount * 0.4)
-	if limb_id == "cabeca" and has_mask():
+	if has_mask() and rng.randf() < float(ZONES["cabeca"]):
 		equip["mascara"]["dur"] = maxf(0.0, mask_seal() - amount * 0.8)
 	message.emit(text)
 
@@ -1182,9 +1127,8 @@ func melee_damage() -> float:
 	if implant_active("braco_d"):
 		dmg += 14.0
 	dmg *= 1.0 + 0.04 * float(level("combate")) + gear_bonus("combate")
-	if float(limbs["braco_d"]["hp"]) < 30.0 and pain_t <= 0.0:
-		dmg *= 0.6
-	dmg *= 1.0 - bone_penalty("braco_d") - 0.5 * bone_penalty("braco_e")
+	if hp < 25.0 and pain_t <= 0.0:
+		dmg *= 0.8
 	if stamina < 8.0:
 		dmg *= 0.6
 	return dmg
@@ -1205,15 +1149,9 @@ func on_melee_hit() -> void:
 
 func speed_mult() -> float:
 	var m := 1.0
-	for l in ["perna_e", "perna_d"]:
-		var hp := float(limbs[l]["hp"])
-		if pain_t > 0.0:
-			break
-		if hp <= 0.0:
-			m -= 0.25
-		elif hp < 40.0:
-			m -= 0.15
-	m -= bone_penalty("perna_e") + bone_penalty("perna_d")
+	if hp < 25.0 and pain_t <= 0.0:
+		m -= 0.1
+	m -= leg_penalty()
 	m += 0.015 * float(level("atletismo"))
 	if implant_active("pernas"):
 		m += 0.12
@@ -1353,10 +1291,16 @@ func use_item(ref: Variant) -> void:
 				message.emit("Regador cheio.")
 			else:
 				message.emit("Encha o regador com uma garrafa de água (limpa ou suja).")
-		"analgesico":
+		"med":
+			apply_med(id)
+		"estimulante":
 			remove_u(u)
-			pain_t = 120.0
-			message.emit("Analgésico: a dor some por 2 minutos.")
+			water = minf(100.0, water + float(def.get("agua", 0.0)))
+			var st: Array = def.get("estamina", [1.5, 60.0])
+			stam_mult = maxf(stam_mult if stam_t > 0.0 else 1.0, float(st[0]))
+			stam_t = maxf(stam_t, float(st[1]))
+			stamina = minf(max_stamina(), stamina + float(def.get("estamina_ja", 0.0)))
+			message.emit("%s: sua estamina volta %d%% mais rápido por %ds." % [def["nome"], int((float(st[0]) - 1.0) * 100.0), int(st[1])])
 		_:
 			message.emit("Use este item em outra aba.")
 
@@ -1414,58 +1358,67 @@ func _say_both(h: SurvivorData, text: String) -> void:
 		h.message.emit(text)
 
 
-## Trata um membro. 'healer' é quem faz o curativo (os suprimentos e a Medicina são dele);
-## null = o próprio sobrevivente. Tratar outra pessoa rende 50% mais experiência.
-func treat(limb_id: String, action: String, healer: SurvivorData = null) -> void:
+## Usa um remédio ou curativo (DB.ITEMS tipo "med") neste sobrevivente. 'healer' é quem
+## aplica (os suprimentos, a Medicina e a roupa de médico são dele); null = o próprio.
+## Campos do item: cura (vida na hora), estanca (fração do sangramento que para), reduz
+## (fração do sangramento que diminui), regen [vida/s, segundos], dor (s de analgésico),
+## osso (imobiliza a perna). Tratar outra pessoa rende 50% mais experiência.
+func apply_med(item_id: String, healer: SurvivorData = null) -> bool:
 	var h: SurvivorData = healer if healer != null else self
-	var xp_k := 1.5 if h != self else 1.0
-	var limb: Dictionary = limbs[limb_id]
-	if action == "antibiotico":
-		if not h.take_item("antibiotico"):
-			h.message.emit("Sem antibiótico.")
-			return
-		antibiotic_t = 120.0
-		h.add_xp("medicina", 4.0 * xp_k)
-		_say_both(h, "Antibiótico aplicado por 2 minutos.")
-		return
-	if action == "imobilizar":
-		if int(limb.get("osso", 0)) == 0:
-			h.message.emit("%s não tem osso machucado." % LIMB_NAMES[limb_id])
-			return
-		if limb.get("tala", false):
-			h.message.emit("Já está imobilizado.")
-			return
-		if not h.take_item("tala"):
-			h.message.emit("Sem tala.")
-			return
-		limb["tala"] = true
-		h.add_xp("medicina", 8.0 * xp_k)
-		_say_both(h, "%s imobilizado com tala." % LIMB_NAMES[limb_id])
-		return
-	if int(limb["wound"]) == 0:
-		h.message.emit("Não há ferida em %s." % LIMB_NAMES[limb_id])
-		return
-	match action:
-		"desinfetar":
-			if not h.spend("antisseptico") and not h.spend("alcool"):
-				h.message.emit("Sem antisséptico nem álcool.")
-				return
-			limb["disinfected"] = true
-			limb["infection"] = maxf(0.0, float(limb["infection"]) - 15.0)
-			h.add_xp("medicina", 6.0 * xp_k)
-			_say_both(h, "%s desinfetado." % LIMB_NAMES[limb_id])
-		"enfaixar":
-			if limb["bandaged"]:
-				h.message.emit("Já está enfaixado.")
-				return
-			if not h.take_item("bandagem") and not h.take_item("gaze"):
-				h.message.emit("Sem bandagem nem gaze.")
-				return
-			limb["bandaged"] = true
-			# quem entende de medicina enfaixa melhor: a ferida já começa a fechar
-			limb["heal"] = float(limb["heal"]) + 6.0 * float(h.level("medicina")) + 40.0 * h.gear_bonus("medico")
-			h.add_xp("medicina", (5.0 if int(limb["wound"]) == 1 else 9.0) * xp_k)
-			_say_both(h, "%s enfaixado." % LIMB_NAMES[limb_id])
+	var def: Dictionary = DB.ITEMS.get(item_id, {})
+	if String(def.get("tipo", "")) != "med":
+		return false
+	var why := med_useless(item_id)
+	if why != "":
+		h.message.emit(why)
+		return false
+	if not h.take_item(item_id):
+		h.message.emit("Sem %s." % DB.item_name(item_id).to_lower())
+		return false
+	var skill := 1.0 + 0.06 * float(h.level("medicina")) + h.gear_bonus("medico")
+	var got: Array[String] = []
+	if def.get("osso", false):
+		tala = true
+		got.append("perna imobilizada")
+	if float(def.get("estanca", 0.0)) > 0.0 and bleed > 0.0:
+		bleed *= 1.0 - float(def["estanca"])
+		if bleed < 0.005:
+			bleed = 0.0
+		got.append("sangramento estancado" if bleed <= 0.0 else "sangramento menor")
+	if float(def.get("reduz", 0.0)) > 0.0 and bleed > 0.0:
+		bleed *= 1.0 - minf(0.95, float(def["reduz"]) * (0.9 + 0.1 * skill))
+		got.append("sangramento menor")
+	var cura := float(def.get("cura", 0.0)) * skill
+	if cura > 0.0:
+		var before := hp
+		hp = minf(MAX_HP, hp + cura)
+		if hp - before >= 1.0:
+			got.append("+%d de vida" % int(hp - before))
+	if def.has("regen"):
+		var rg: Array = def["regen"]
+		regen_rate = maxf(regen_rate if regen_t > 0.0 else 0.0, float(rg[0]) * skill)
+		regen_t = maxf(regen_t, float(rg[1]))
+		got.append("cura %.1f/s por %ds" % [regen_rate, int(rg[1])])
+	if float(def.get("dor", 0.0)) > 0.0:
+		pain_t = maxf(pain_t, float(def["dor"]))
+		got.append("sem dor por %ds" % int(def["dor"]))
+	h.add_xp("medicina", float(def.get("xp", 3.0)) * (1.5 if h != self else 1.0))
+	var who := "" if h == self else " (por %s)" % h.nome
+	_say_both(h, "%s%s: %s." % [DB.item_name(item_id), who, ", ".join(got) if not got.is_empty() else "aplicado"])
+	return true
+
+
+## Por que esse remédio não serve agora ("" = serve).
+func med_useless(item_id: String) -> String:
+	var def: Dictionary = DB.ITEMS.get(item_id, {})
+	if def.get("osso", false) and (perna == 0 or tala):
+		return "Não há perna machucada para imobilizar." if perna == 0 else "A perna já está imobilizada."
+	var helps: bool = bool(def.get("osso", false)) or float(def.get("dor", 0.0)) > 0.0
+	if (float(def.get("estanca", 0.0)) > 0.0 or float(def.get("reduz", 0.0)) > 0.0) and bleed > 0.0:
+		helps = true
+	if (float(def.get("cura", 0.0)) > 0.0 or def.has("regen")) and hp < MAX_HP - 0.5:
+		helps = true
+	return "" if helps else "Você não precisa disso agora."
 
 
 # ---------------------------------------------------------------- cibernética
@@ -1507,7 +1460,7 @@ func _tick_neural(delta: float) -> void:
 	if overloaded():
 		heat = minf(100.0, heat + 0.4 * delta)
 		if over:
-			_hurt_internal("cabeca", 0.15 * delta, "Colapso nervoso")
+			_hurt(0.15 * delta, "Colapso nervoso")
 			_warn("sobrecarga", "COLAPSO NERVOSO! Próteses demais para o seu corpo (%d/%d)." % [general_count(), neural_capacity()], 20.0)
 		else:
 			_warn("sobrecarga", "COLAPSO NERVOSO! A tensão nervosa está alta demais.", 20.0)
@@ -1540,7 +1493,7 @@ func install_implant(item_id: String, surgeon: SurvivorData = null) -> void:
 	h.take_item(item_id)
 	# sem suporte neural o corpo rejeita o implante na hora (GDD 4)
 	if slot != "cerebro" and general_count() >= neural_capacity():
-		damage_limb(def["membro"], 20.0)
+		_hurt(20.0, "Cirurgia")
 		synaptic = 100.0
 		h.add_xp("cibernetica", 6.0)
 		if h != self:
@@ -1563,10 +1516,11 @@ func install_implant(item_id: String, surgeon: SurvivorData = null) -> void:
 	if h.has_trait("maos_firmes"):
 		crit_p *= 0.6
 	if r < death_p:
-		_hurt_internal("torso", 999.0, "Cirurgia fracassada")
+		_hurt(999.0, "Cirurgia fracassada")
 		message.emit("A cirurgia deu errado de forma fatal...")
 	elif r < death_p + crit_p:
-		damage_limb("torso", 35.0)
+		_hurt(35.0, "Cirurgia")
+		bleed += 0.25
 		message.emit("FALHA CRÍTICA na cirurgia! A prótese foi destruída.")
 		add_xp("medicina", 10.0)
 	else:
@@ -1591,8 +1545,8 @@ func remove_implant(slot: String, surgeon: SurvivorData = null) -> void:
 	implants.erase(slot)
 	var fail := maxf(0.0, 0.35 - 0.08 * float(h.level("cibernetica")))
 	if rng.randf() < fail:
-		damage_limb(def["membro"], 18.0)
-		_say_both(h, "A remoção foi brusca: a prótese quebrou e feriu %s." % LIMB_NAMES[def["membro"]].to_lower())
+		_hurt(18.0, "Cirurgia")
+		_say_both(h, "A remoção foi brusca: a prótese quebrou e feriu o paciente.")
 	elif float(imp["integ"]) < 15.0:
 		_say_both(h, "Prótese removida, mas destruída demais para reaproveitar.")
 	else:
@@ -1651,10 +1605,11 @@ func craft(recipe: String, paid := false) -> bool:
 # ---------------------------------------------------------------- persistência
 func to_dict() -> Dictionary:
 	return {"nome": nome, "pathogen": pathogen, "calories": calories,
-		"water": water, "blood": blood, "limbs": limbs.duplicate(true), "skills": skills.duplicate(true),
+		"water": water, "hp": hp, "bleed": bleed, "perna": perna, "tala": tala, "osso_t": osso_t,
+		"regen_rate": regen_rate, "regen_t": regen_t, "stam_mult": stam_mult, "stam_t": stam_t, "skills": skills.duplicate(true),
 		"bags": bags.duplicate(true), "equip": equip.duplicate(true), "hand_u": hand_u, "next_u": _next_u,
 		"implants": implants.duplicate(true), "suppress_t": suppress_t, "tainted_t": tainted_t,
-		"antibiotic_t": antibiotic_t, "battery": battery, "heat": heat, "time_alive": time_alive,
+		"battery": battery, "heat": heat, "time_alive": time_alive,
 		"forca": forca, "resist": resist, "traits": traits.duplicate(), "stamina": stamina, "synaptic": synaptic,
 		"pain_t": pain_t, "grab_t": grab_t, "slow_t": slow_t, "sono": sono, "sleeping": sleeping, "temp_corpo": temp_corpo, "molhado": molhado, "light_u": light_u, "well_fed_t": well_fed_t, "hotbar": hotbar.duplicate()}
 
@@ -1665,22 +1620,23 @@ static func from_dict(src: Dictionary) -> SurvivorData:
 	d.pathogen = float(src.get("pathogen", 10.0))
 	d.calories = float(src.get("calories", 1600.0))
 	d.water = float(src.get("water", 80.0))
-	d.blood = float(src.get("blood", 100.0))
+	if src.has("hp"):
+		d.hp = float(src["hp"])
+		d.bleed = float(src.get("bleed", 0.0))
+		d.perna = int(src.get("perna", 0))
+		d.tala = bool(src.get("tala", false))
+		d.osso_t = float(src.get("osso_t", 0.0))
+	else:
+		d._migrate_limbs(src)
+	d.regen_rate = float(src.get("regen_rate", 0.0))
+	d.regen_t = float(src.get("regen_t", 0.0))
+	d.stam_mult = float(src.get("stam_mult", 1.0))
+	d.stam_t = float(src.get("stam_t", 0.0))
 	d.suppress_t = float(src.get("suppress_t", 0.0))
 	d.tainted_t = float(src.get("tainted_t", 0.0))
-	d.antibiotic_t = float(src.get("antibiotic_t", 0.0))
 	d.battery = float(src.get("battery", 0.0))
 	d.heat = float(src.get("heat", 0.0))
 	d.time_alive = float(src.get("time_alive", 0.0))
-	var src_limbs: Dictionary = src.get("limbs", {})
-	for l in LIMBS:
-		if src_limbs.has(l):
-			var sl: Dictionary = src_limbs[l]
-			d.limbs[l] = {"hp": float(sl.get("hp", 100.0)), "wound": int(sl.get("wound", 0)),
-				"bleed": float(sl.get("bleed", 0.0)), "infection": float(sl.get("infection", 0.0)),
-				"disinfected": bool(sl.get("disinfected", false)),
-				"bandaged": bool(sl.get("bandaged", false)), "heal": float(sl.get("heal", 0.0)),
-				"osso": int(sl.get("osso", 0)), "tala": bool(sl.get("tala", false)), "osso_t": float(sl.get("osso_t", 0.0))}
 	var src_skills: Dictionary = src.get("skills", {}).duplicate()
 	# habilidades das versões antigas: Engenharia vira Eletrônica, Lógica vira Metalurgia
 	for old in [["engenharia", "eletronica"], ["logica", "metalurgia"]]:
@@ -1724,6 +1680,25 @@ static func from_dict(src: Dictionary) -> SurvivorData:
 	for k in src_imp:
 		d.implants[str(k)] = {"id": str(src_imp[k]["id"]), "integ": float(src_imp[k]["integ"])}
 	return d
+
+
+## Save antigo com membros: a vida vira o pior entre o sangue, a cabeça e o tronco; o
+## sangramento é a soma das feridas abertas; a pior perna vira a perna.
+func _migrate_limbs(src: Dictionary) -> void:
+	var lm: Dictionary = src.get("limbs", {})
+	hp = float(src.get("blood", MAX_HP))
+	for l in ["cabeca", "torso"]:
+		if lm.has(l):
+			hp = minf(hp, float(lm[l].get("hp", MAX_HP)))
+	hp = maxf(hp, 10.0)
+	for l in lm:
+		var limb: Dictionary = lm[l]
+		if int(limb.get("wound", 0)) > 0 and not bool(limb.get("bandaged", false)):
+			bleed += float(limb.get("bleed", 0.0))
+		if str(l).begins_with("perna") and int(limb.get("osso", 0)) > perna:
+			perna = int(limb["osso"])
+			tala = bool(limb.get("tala", false))
+			osso_t = float(limb.get("osso_t", 0.0))
 
 
 ## Sobrevivente salvo na versão 3 (inventário {id: n}, máscara ligada/desligada e filtro):

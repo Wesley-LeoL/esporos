@@ -1633,7 +1633,7 @@ func break_window(p: Player, k: Vector3i) -> void:
 	make_noise(edge_pos(k), 420.0)
 	sfx_at("vidro_quebra", edge_pos(k))
 	if p.data.weapon_inst().is_empty() and rng.randf() < 0.45:
-		p.data.damage_limb(["braco_e", "braco_d"][rng.randi() % 2], 9.0)
+		p.data.damage(9.0, "Cortes de vidro")
 		Game.tell(p.peer, "Você cortou o braço no vidro.")
 	else:
 		Game.tell(p.peer, "Vidro quebrado: dá para passar pela janela.")
@@ -3245,7 +3245,7 @@ func vehicle_action(p: Player, key: String, op: String) -> void:
 				Game.tell(p.peer, "Ligação direta exige Mecânica 2.")
 				return
 			if randf() < maxf(0.05, 0.35 - 0.08 * float(d.level("mecanica"))):
-				d.damage_limb("braco_d", 6.0)
+				d.damage(6.0, "Choque elétrico")
 				d.add_xp("mecanica", 4.0)
 				Game.tell(p.peer, "Levou um choque! A ligação direta falhou.")
 				return

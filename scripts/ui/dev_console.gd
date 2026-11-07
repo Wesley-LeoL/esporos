@@ -7,20 +7,16 @@ const COMMANDS: Array[String] = ["ajuda", "itens", "dar", "dano", "curar", "rest
 	"spawn", "limpar", "tp", "pos", "matar", "infectar", "implante", "god", "salvar", "cls",
 	"kit", "kit_medico", "kit_build", "kit_cyber"]
 
-const LIMB_ALIASES := {"cabeca": "cabeca", "cabeça": "cabeca", "tronco": "torso", "torso": "torso",
-	"braco_e": "braco_e", "braço_e": "braco_e", "braco_d": "braco_d", "braço_d": "braco_d",
-	"perna_e": "perna_e", "perna_d": "perna_d"}
-
-const STATS := {"patogeno": ["pathogen", 100.0], "sangue": ["blood", 100.0], "calorias": ["calories", 2000.0],
+const STATS := {"patogeno": ["pathogen", 100.0], "vida": ["hp", 100.0], "sangramento": ["bleed", 2.0], "calorias": ["calories", 2000.0],
 	"agua": ["water", 100.0],
 	"bateria": ["battery", 100.0], "filtro": ["filter", 100.0], "calor": ["heat", 100.0], "estamina": ["stamina", 200.0]}
 
 const HELP := """[color=#9be04a]COMANDOS[/color] (Tab completa · setas ↑↓ histórico · F1 ou ` fecha)
 [color=#ffe066]dar[/color] <item> [qtd]        adiciona item (ex: dar metal 20 · dar tudo 5). "itens [filtro]" lista os ids
-[color=#ffe066]dano[/color] <membro|todos> <n>  causa dano (cabeca, tronco, braco_e, braco_d, perna_e, perna_d)
-[color=#ffe066]curar[/color]                  cura ferimentos, sangue e infecções
+[color=#ffe066]dano[/color] <n> | perna <1|2>  golpe de n (pode sangrar) · torce (1) ou quebra (2) a perna
+[color=#ffe066]curar[/color]                  cura a vida, o sangramento e a perna
 [color=#ffe066]restaurar[/color]              cura tudo e zera patógeno; enche fome, sede, filtro e bateria
-[color=#ffe066]set[/color] <stat> <valor>       patogeno, sangue, calorias (fome), agua (sede), bateria, filtro, calor, estamina
+[color=#ffe066]set[/color] <stat> <valor>       patogeno, vida, sangramento, calorias (fome), agua (sede), bateria, filtro, calor, estamina
 [color=#ffe066]skill[/color] <nome|todas> <0-10>  combate pontaria atletismo furtividade mecanica eletronica carpintaria metalurgia medicina cibernetica agricultura culinaria
 [color=#ffe066]spawn[/color] [normal|elite] [n]  cria inimigos perto de você
 [color=#ffe066]limpar[/color]                 remove todos os infectados
@@ -274,7 +270,7 @@ func _run(text: String, p: Player) -> void:
 			_cmd_damage(d, args)
 		"curar", "heal":
 			_heal(d)
-			_ok("Ferimentos, sangue e infecções curados.")
+			_ok("Vida, sangramento e perna curados.")
 		"restaurar", "restore":
 			_heal(d)
 			d.pathogen = 0.0
@@ -350,39 +346,26 @@ func _cmd_give(d: SurvivorData, args: PackedStringArray) -> void:
 
 
 func _cmd_damage(d: SurvivorData, args: PackedStringArray) -> void:
-	if args.size() < 2 or not args[1].is_valid_float():
-		_err("Uso: dano <membro|todos> <quantidade>   (membros: cabeca tronco braco_e braco_d perna_e perna_d)")
+	# aceita "dano 20" e o formato antigo "dano <membro> 20"
+	var v := args[args.size() - 1] if args.size() > 0 else ""
+	if not v.is_valid_float():
+		_err("Uso: dano <quantidade>   (golpe com chance de sangrar; 'perna 1|2' torce ou quebra a perna)")
 		return
-	var amount := float(args[1])
-	var which := args[0].to_lower()
-	var targets: Array[String] = []
-	if which in ["todos", "tudo"]:
-		targets.assign(SurvivorData.LIMBS)
-	elif LIMB_ALIASES.has(which):
-		targets.append(LIMB_ALIASES[which])
-	else:
-		_err("Membro '%s' inválido." % which)
+	if args.size() >= 2 and args[0].to_lower() == "perna":
+		d.injure_leg(clampi(int(v), 1, 2))
+		_ok("Perna %s." % ("quebrada" if int(v) >= 2 else "torcida"))
 		return
-	for l in targets:
-		d.damage_limb(l, amount)
-	_ok("Dano %d em %s.%s" % [int(amount), which, "  (god ativo: ignorado)" if d.god else ""])
+	var amount := float(v)
+	d.damage(amount)
+	_ok("Dano %d.%s" % [int(amount), "  (god ativo: ignorado)" if d.god else ""])
 
 
 func _heal(d: SurvivorData) -> void:
-	for l in SurvivorData.LIMBS:
-		var limb: Dictionary = d.limbs[l]
-		limb["hp"] = 100.0
-		limb["wound"] = 0
-		limb["bleed"] = 0.0
-		limb["infection"] = 0.0
-		limb["disinfected"] = false
-		limb["bandaged"] = false
-		limb["heal"] = 0.0
-		limb["osso"] = 0
-		limb["tala"] = false
-		limb["osso_t"] = 0.0
-	d.blood = 100.0
-	d.antibiotic_t = 0.0
+	d.hp = SurvivorData.MAX_HP
+	d.bleed = 0.0
+	d.perna = 0
+	d.tala = false
+	d.osso_t = 0.0
 
 
 func _cmd_set(d: SurvivorData, args: PackedStringArray) -> void:
@@ -537,7 +520,7 @@ func _cmd_kit(d: SurvivorData, which: String) -> void:
 				"bandagem": 6, "bateria": 2, "machete": 1, "fita": 2, "pistola": 1, "municao_9mm": 36, "lanterna": 1, "pilha": 2,
 				"abridor": 1}
 		"kit_medico":
-			items = {"bandagem": 10, "antisseptico": 10, "tala": 6, "antibiotico": 6, "supressor": 4, "kit_cirurgico": 2}
+			items = {"bandagem": 10, "curativo_iodo": 4, "curativo_campo": 2, "hemostatico": 3, "analgesico": 3, "antisseptico": 4, "alcool": 2, "tala": 4, "antibiotico": 4, "tonico_energetico": 2, "adrenalina": 1, "supressor": 4, "kit_cirurgico": 2}
 		"kit_build":
 			# muito material: o que não couber fica num saco no chão
 			d.wear(Items.make("mochila_militar")[0])

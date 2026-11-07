@@ -277,8 +277,7 @@ func _raid_goal(delta: float) -> Vector2:
 
 func _hit(t: Node2D, dmg: float) -> void:
 	if t is Player:
-		var limbs: Array = ["torso", "torso", "braco_e", "braco_d", "perna_e", "perna_d", "cabeca"]
-		(t as Player).server_hurt(limbs[randi() % limbs.size()], dmg * randf_range(0.8, 1.2), 0.0)
+		(t as Player).server_hurt(dmg * randf_range(0.8, 1.2), 0.0)
 	elif t.has_method("take_damage") and t is Infected:
 		(t as Infected).take_damage(dmg, self, 0.3)
 	elif t.has_method("take_hit"):

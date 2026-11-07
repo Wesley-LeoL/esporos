@@ -220,74 +220,114 @@ func _initialize() -> void:
 	g.water = 10.0
 	g.use_item(int(c["u"]))
 	check(g.water > 35.0 and float(c["carga"]) < 100.0, "cantil dá água")
-	g.limbs["perna_e"]["hp"] = 10.0
+	g.injure_leg(1)
 	var slow := g.speed_mult()
 	g.give("analgesico")
 	g.use_item("analgesico")
-	check(g.speed_mult() > slow, "analgésico tira a lentidão da perna ferida")
+	check(g.speed_mult() > slow, "analgésico alivia a lentidão da perna machucada")
 
-	# ferimentos: nem todo golpe sangra; com ferida aberta, novos cortes pioram a mesma
+	# saúde: vida única, sangramento que piora, bandagem estanca e cura, perna e tala
 	var bl := SurvivorData.from_spec({"nome": "Alvo", "forca": 5, "resist": 5, "skills": {}, "traits": []}, r)
 	for slot: String in DB.ROUPA_SLOTS:
 		bl.equip[slot] = {}
 	bl.rng.seed = 7
 	var plain_hits := 0
 	for i in 40:
-		var b0 := bl.bleeding_limb()
-		bl.limbs["torso"]["hp"] = 100.0
-		bl.damage_limb("torso", 10.0)
-		if bl.bleeding_limb() == "" :
+		var was := bl.bleed
+		bl.hp = 100.0
+		bl.damage(10.0)
+		if bl.bleed <= 0.0:
 			plain_hits += 1
-		if b0 != "":
+		if was > 0.0:
 			break
 	check(plain_hits > 0, "golpe às vezes só dá dano, sem sangrar")
-	var opened := bl.bleeding_limb()
-	check(opened == "torso", "um golpe acaba abrindo ferida")
-	var bleed0 := float(bl.limbs["torso"]["bleed"])
+	check(bl.bleed > 0.0 and bl.hp < 100.0, "um golpe acaba abrindo sangramento e tira vida")
+	var bleed0 := bl.bleed
 	for i in 60:
-		bl.limbs["braco_e"]["hp"] = 100.0
-		bl.damage_limb("braco_e", 14.0)
-	check(int(bl.limbs["braco_e"]["wound"]) == 0 and float(bl.limbs["torso"]["bleed"]) > bleed0,
-		"com ferida aberta, cortes em outro membro só aumentam o sangramento")
-	# ossos: queda, torção/fratura, tala; ferida profunda fecha só com bandagem
+		bl.hp = 100.0
+		bl.damage(14.0)
+	check(bl.bleed > bleed0, "sangrando, novos cortes aumentam o sangramento")
+	bl.hp = 60.0
+	bl.bleed = 0.3
+	bl.calories = 1500.0
+	bl.water = 80.0
+	bl._tick_health(10.0)
+	check(bl.hp < 60.0 - 2.0, "sangramento tira vida por segundo (%.1f)" % bl.hp)
+	var hp_b := bl.hp
+	bl.give("bandagem", 1)
+	bl.use_item("bandagem")
+	check(bl.bleed == 0.0 and bl.hp >= hp_b + 11.0, "bandagem estanca o sangramento e cura na hora")
+	bl.give("bandagem", 1)
+	bl.hp = SurvivorData.MAX_HP
+	var nb0 := bl.count("bandagem")
+	bl.use_item("bandagem")
+	check(bl.count("bandagem") == nb0, "bandagem sem necessidade não é gasta")
+	bl.hp = 50.0
+	bl.give("antibiotico", 1)
+	bl.use_item("antibiotico")
+	bl._tick_health(20.0)
+	check(bl.hp >= 59.0 and bl.regen_t > 0.0, "antibiótico cura aos poucos (%.1f)" % bl.hp)
+	bl.bleed = 0.4
+	bl.give("analgesico", 1)
+	bl.use_item("analgesico")
+	check(bl.bleed < 0.25 and bl.bleed > 0.0, "analgésico diminui o sangramento sem estancar")
+	bl.give("hemostatico", 1)
+	bl.use_item("hemostatico")
+	check(bl.bleed < 0.06, "pó hemostático corta quase todo o sangramento")
+	bl.bleed = 0.05
+	for i in 120:
+		bl._tick_health(1.0)
+	check(bl.bleed == 0.0, "sangramento leve estanca sozinho")
+	# estimulantes
+	var st := SurvivorData.from_spec({"nome": "Corredor", "forca": 5, "resist": 5, "skills": {}, "traits": []}, r)
+	st.stamina = 0.0
+	st._tick_stamina(1.0, false)
+	var base_regen := st.stamina
+	st.stamina = 0.0
+	st.give("tonico_energetico", 1)
+	st.use_item("tonico_energetico")
+	st._tick_stamina(1.0, false)
+	check(st.stamina > base_regen * 1.7 and st.stam_t > 0.0, "tônico revigorante acelera a estamina")
+	st.stamina = 0.0
+	st.give("adrenalina", 1)
+	st.use_item("adrenalina")
+	check(st.stamina >= 50.0 and st.stam_mult >= 3.0, "adrenalina devolve estamina na hora e acelera 3x")
+	# perna: queda, torção/fratura, tala
 	var fa := SurvivorData.from_spec({"nome": "Queda", "forca": 5, "resist": 5, "skills": {}, "traits": []}, r)
 	var sp0 := fa.speed_mult()
 	fa.fall_injury(2.0)
-	check(fa.limbs["perna_e"]["osso"] == 0 and fa.limbs["perna_d"]["osso"] == 0, "pulo baixo não machuca")
+	check(fa.perna == 0 and fa.hp == SurvivorData.MAX_HP, "pulo baixo não machuca")
 	fa.fall_injury(9.0)
-	var broken := "perna_e" if int(fa.limbs["perna_e"]["osso"]) == 2 else "perna_d"
-	check(int(fa.limbs[broken]["osso"]) == 2, "queda de 9 m quebra uma perna")
+	check(fa.perna == 2 and fa.hp < 70.0, "queda de 9 m quebra a perna e tira vida")
 	var sp_broken := fa.speed_mult()
 	check(sp_broken < sp0 - 0.3, "perna quebrada deixa lento (%.2f < %.2f)" % [sp_broken, sp0])
 	fa.give("tala", 1)
-	fa.treat(broken, "imobilizar")
-	check(fa.limbs[broken]["tala"] and fa.speed_mult() > sp_broken, "tala alivia a lentidão")
+	var hp_t := fa.hp
+	fa.use_item("tala")
+	check(fa.tala and fa.speed_mult() > sp_broken and fa.hp > hp_t, "tala imobiliza, alivia a lentidão e cura um pouco")
 	fa.calories = 1500.0
 	fa.water = 80.0
 	for i in 700:
-		fa._tick_bone(broken, fa.limbs[broken], 1.0, true)
-	check(int(fa.limbs[broken]["osso"]) == 0 and not fa.limbs[broken]["tala"], "fratura imobilizada sara com o tempo")
+		fa._tick_bone(1.0, true)
+	check(fa.perna == 0 and not fa.tala, "fratura imobilizada sara com o tempo")
 	var nt := SurvivorData.from_spec({"nome": "SemTala", "forca": 5, "resist": 5, "skills": {}, "traits": []}, r)
-	nt.break_bone("braco_e", 2)
+	nt.injure_leg(2)
 	for i in 1200:
-		nt._tick_bone("braco_e", nt.limbs["braco_e"], 1.0, true)
-	check(int(nt.limbs["braco_e"]["osso"]) == 2, "fratura sem tala não sara")
-	nt.break_bone("perna_d", 1)
+		nt._tick_bone(1.0, true)
+	check(nt.perna == 2, "fratura sem tala não sara")
+	var nt2 := SurvivorData.from_spec({"nome": "Torcido", "forca": 5, "resist": 5, "skills": {}, "traits": []}, r)
+	nt2.injure_leg(1)
 	for i in 260:
-		nt._tick_bone("perna_d", nt.limbs["perna_d"], 1.0, true)
-	check(int(nt.limbs["perna_d"]["osso"]) == 0, "torção sara sozinha")
-	var dp := SurvivorData.from_spec({"nome": "Fundo", "forca": 5, "resist": 5, "skills": {}, "traits": []}, r)
-	dp.limbs["torso"]["wound"] = 2
-	dp.limbs["torso"]["bleed"] = 0.5
-	dp.give("bandagem", 1)
-	dp.give("alcool", 1)
-	dp.treat("torso", "desinfetar")
-	dp.treat("torso", "enfaixar")
-	dp.calories = 1500.0
-	dp.water = 80.0
-	for i in 230:
-		dp._tick_wounds(1.0, 0.0)
-	check(int(dp.limbs["torso"]["wound"]) == 1, "ferida profunda enfaixada vira leve com o tempo")
+		nt2._tick_bone(1.0, true)
+	check(nt2.perna == 0, "torção sara sozinha")
+	var old_save := nt2.to_dict()
+	old_save.erase("hp")
+	old_save["blood"] = 70.0
+	old_save["limbs"] = {"torso": {"hp": 55.0, "wound": 2, "bleed": 0.2, "bandaged": false}, "perna_e": {"hp": 80.0, "osso": 2, "tala": true}}
+	var mig := SurvivorData.from_dict(old_save)
+	check(mig.hp == 55.0 and mig.bleed > 0.19 and mig.perna == 2 and mig.tala, "save antigo com membros vira vida, sangramento e perna")
+	check(DB.CRAFTS.has("curativo_iodo") and DB.CRAFTS.has("curativo_campo") and float(DB.ITEMS["curativo_campo"]["cura"]) > float(DB.ITEMS["bandagem"]["cura"]),
+		"dá para fabricar curativos melhores")
 	check(not DB.ITEMS.has("kit_sutura") and Items.sanitize([{"id": "kit_sutura", "n": 1}])[0]["id"] == "tala", "sutura saiu (saves antigos viram tala)")
 
 	# chaves não empilham e guardam a fechadura no save
@@ -302,16 +342,20 @@ func _initialize() -> void:
 	for slot: String in DB.ROUPA_SLOTS:
 		nu.equip[slot] = {}
 	nu.god = false
-	nu.damage_limb("perna_d", 20.0)
-	var bare := 100.0 - float(nu.limbs["perna_d"]["hp"])
+	nu.damage(20.0)
+	var bare := 100.0 - nu.hp
 	var arm := SurvivorData.from_spec({"nome": "Blindado", "forca": 5, "resist": 5, "skills": {}, "traits": []}, r)
 	for id: String in ["calca_tatica", "botas_militares"]:
 		var it: Dictionary = Items.make(id)[0]
 		it["dur"] = 100.0
 		arm.wear(it)
-	arm.damage_limb("perna_d", 20.0)
-	var taken := 100.0 - float(arm.limbs["perna_d"]["hp"])
-	check(taken < bare * 0.8, "calça tática reduz o dano na perna (%.1f < %.1f)" % [taken, bare])
+	for id: String in ["colete_tatico", "capacete_militar"]:
+		var it2: Dictionary = Items.make(id)[0]
+		it2["dur"] = 100.0
+		arm.wear(it2)
+	arm.damage(20.0)
+	var taken := 100.0 - arm.hp
+	check(taken < bare * 0.8, "roupa do regimento reduz o dano (%.1f < %.1f)" % [taken, bare])
 	check(float(arm.equip["pernas"]["dur"]) < 100.0, "roupa gasta ao absorver golpes")
 	var mec := SurvivorData.from_spec({"nome": "Mecanico", "forca": 5, "resist": 5, "skills": {}, "traits": []}, r)
 	for id: String in ["macacao_mecanico", "luvas_mecanico"]:
@@ -328,15 +372,15 @@ func _initialize() -> void:
 	# fase 6: medicina cooperativa (o curativo usa os suprimentos e a Medicina de quem trata)
 	var medic := SurvivorData.from_spec({"nome": "Medica", "forca": 5, "resist": 5, "skills": {"medicina": 3}, "traits": []}, r)
 	var hurt := SurvivorData.from_spec({"nome": "Ferido", "forca": 5, "resist": 5, "skills": {}, "traits": []}, r)
-	hurt.limbs["perna_e"]["wound"] = 1
-	hurt.limbs["perna_e"]["bleed"] = 0.3
+	hurt.bleed = 0.3
+	hurt.hp = 50.0
 	medic.give("bandagem", 1)
 	var med_band := medic.count("bandagem")
 	var xp0 := float(medic.skills["medicina"]["xp"])
 	var own_band := hurt.count("bandagem")
-	hurt.treat("perna_e", "enfaixar", medic)
-	check(hurt.limbs["perna_e"]["bandaged"] and medic.count("bandagem") == med_band - 1 and hurt.count("bandagem") == own_band,
-		"aliado enfaixa usando a bandagem dele")
+	hurt.apply_med("bandagem", medic)
+	check(hurt.bleed == 0.0 and hurt.hp > 62.0 and medic.count("bandagem") == med_band - 1 and hurt.count("bandagem") == own_band,
+		"aliado usa a bandagem dele, e a Medicina dele cura mais (%.1f)" % hurt.hp)
 	check(float(medic.skills["medicina"]["xp"]) > xp0, "quem trata ganha experiência")
 	medic.skills["medicina"]["lv"] = 6
 	medic.skills["cibernetica"]["lv"] = 6
