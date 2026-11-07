@@ -1118,6 +1118,8 @@ func show_death_ui(info: Dictionary) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if not is_local() or not alive:
 		return
+	if Game.hud != null and Game.hud.pause_menu != null and Game.hud.pause_menu.visible:
+		return
 	var in_veh := world.vehicle_of(peer)
 	if event.is_action_pressed("interact") and in_veh != null:
 		act("vehicle", [world.key_of(in_veh), "exit"])

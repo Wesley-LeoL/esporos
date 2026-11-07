@@ -97,6 +97,11 @@ func leave() -> void:
 	ready_peers = {}
 
 
+## Sai da sessão de propósito (menu de pausa): volta para a tela de título.
+func end_session(reason := "") -> void:
+	_fail(reason)
+
+
 func _fail(reason: String) -> void:
 	if mode == "":
 		return

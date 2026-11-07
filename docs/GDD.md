@@ -399,4 +399,5 @@ ela será refeita no tema novo com o PixelLab.
 | 21 | Menu pequeno do [E] para tudo no mundo, tempos das ações, comum lento que agarra | **feito** |
 | 22 | Interior escondido de fora (espiar pela janela volta), infectados em casas abandonadas, vilas com cerca incompleta e mais guardas, espetos em volta da vila que ferem e deixam lento | **feito** |
 | 23 | Tema steampunk: nomes, textos, próteses no lugar de implantes, eletricidade rudimentar, paleta de latão e cobre, luzes quentes | **feito** |
+| 24 | Menu de pausa no ESC (pausa no solo; continuar, controles, salvar e voltar ao menu, salvar e sair) e troca de teclas salva em user://controles.cfg; avisos e teclas do HUD mostram a tecla atual | **feito** |
 | 9 | Construção em bordas (estilo The Sims) com 3 abas, utilidades e decoração, rede de energia (eólico, combustão, baterias), mesa de reparos, dia/noite, clima e iluminação | **feito** |

@@ -370,5 +370,26 @@ func _initialize() -> void:
 	var first_tipo := String(Items.def(o.bags["mochila"][0]["id"])["tipo"])
 	check(first_tipo == "arma", "organizar põe as armas primeiro (%s)" % first_tipo)
 
+	# troca de teclas (menu de pausa > controles)
+	var inp: Node = root.get_node("InputSetup")
+	if not InputMap.has_action("interact"):
+		inp._ready()  # no modo -s o _ready dos autoloads ainda não rodou aqui
+	inp.reset_defaults()
+	var ev_f := InputEventKey.new()
+	ev_f.physical_keycode = KEY_F
+	var swapped: String = inp.rebind("interact", 0, ev_f)
+	check(swapped == "shove" and inp.key_text("interact") == "F" and inp.key_text("shove") == "E",
+		"trocar Interagir para F passa o E para Empurrar")
+	check(inp.fix_text("[E] Abrir · [F] empurrar") == "[F] Abrir · [E] empurrar", "avisos mostram a tecla atual")
+	var ev_esc := InputEventKey.new()
+	ev_esc.physical_keycode = KEY_ESCAPE
+	check(inp.rebind("interact", 0, ev_esc) == "!cancel" and inp.key_text("interact") == "F", "ESC é fixo e não pode ser usado")
+	var ev_up := InputEventKey.new()
+	ev_up.physical_keycode = KEY_UP
+	inp.rebind("move_up", 0, ev_up)
+	check(inp.binds("move_up").size() == 2 and inp.key_text("move_up") == "↑", "trocar pela tecla alternativa inverte as duas")
+	inp.reset_defaults()
+	check(inp.key_text("interact") == "E" and not FileAccess.file_exists("user://controles.cfg"), "restaurar padrão volta as teclas e apaga o arquivo")
+
 	print("FALHAS: %d" % fails)
 	quit(1 if fails > 0 else 0)

@@ -20,8 +20,9 @@ const TAB_DEFS := [["inv", "Inventário", "mochila"], ["corpo", "Corpo", "corpo"
 	["impl", "Próteses", "bateria"], ["mapa", "Mapa", "mundo"]]
 const TAB_INV := 0
 const TAB_MAP := 4
-const HINTS := [["SHIFT", "CORRER"], ["C", "AGACHAR"], ["R", "RECARREGAR"], ["E", "INTERAGIR"],
-	["TAB", "MENU"], ["I", "INVENTÁRIO"], ["M", "MAPA"], ["B", "CONSTRUIR"]]
+## Dicas do canto: [ação, texto]. A tecla mostrada é a atual (o jogador pode trocar no ESC).
+const HINTS := [["sprint", "CORRER"], ["sneak", "AGACHAR"], ["reload", "RECARREGAR"], ["interact", "INTERAGIR"],
+	["menu", "MENU"], ["inventory", "INVENTÁRIO"], ["map", "MAPA"], ["build_menu", "CONSTRUIR"], ["cancel", "PAUSA"]]
 const OK_COLOR := Color("#7fe0a0")
 const NO_COLOR := Color("#c07a84")
 const S := UITheme.FONT_S
@@ -49,6 +50,10 @@ var effects_box: VBoxContainer
 var equip_box: HBoxContainer
 var prompt_panel: PanelContainer
 var prompt_key: PanelContainer
+## Menu de pausa (ESC sem nada aberto).
+var pause_menu: PauseMenu
+## Teclas desenhadas que mostram a tecla de uma ação: [Label, ação].
+var _key_caps: Array = []
 var prompt_label: Label
 var banner: PanelContainer
 var banner_label: Label
@@ -133,6 +138,9 @@ func _ready() -> void:
 	fog = _overlay(Color(0.36, 0.56, 0.32, 0.0))
 	hurt = _overlay(Color(0.9, 0.1, 0.1, 0.0))
 	root.add_child(ScanOverlay.new())
+	pause_menu = PauseMenu.new()
+	add_child(pause_menu)
+	InputSetup.keys_changed.connect(_refresh_keys)
 
 	ui = Control.new()
 	ui.scale = Vector2.ONE / UITheme.UI_SCALE
@@ -171,6 +179,15 @@ func _fit() -> void:
 
 func set_active(on: bool) -> void:
 	root.visible = on
+	if not on and pause_menu != null and pause_menu.visible:
+		pause_menu.close()
+
+
+## Atualiza as teclas desenhadas depois que o jogador troca os controles.
+func _refresh_keys() -> void:
+	for pair in _key_caps:
+		if is_instance_valid(pair[0]):
+			(pair[0] as Label).text = InputSetup.key_text(String(pair[1]))
 
 
 func _overlay(col: Color) -> ColorRect:
@@ -198,9 +215,13 @@ func _panel(style := "panel", margin := 16, content := Vector4(20, 14, 20, 14)) 
 	return p
 
 
+## key pode ser o texto da tecla ou o nome de uma ação de input (aí acompanha a troca de teclas).
 func _keycap(key: String) -> PanelContainer:
 	var p := _panel("keycap", 6, Vector4(8, 2, 8, 6))
-	var l := _label(key, S, UITheme.TEXT)
+	var action := key if InputMap.has_action(key) else ""
+	var l := _label(InputSetup.key_text(action) if action != "" else key, S, UITheme.TEXT)
+	if action != "":
+		_key_caps.append([l, action])
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.add_theme_constant_override("shadow_offset_x", 0)
 	l.add_theme_constant_override("shadow_offset_y", 0)
@@ -408,7 +429,7 @@ func _build_prompt() -> void:
 	ui.add_child(prompt_panel)
 	var row := _hbox(10)
 	prompt_panel.add_child(row)
-	prompt_key = _keycap("E")
+	prompt_key = _keycap("interact")
 	row.add_child(prompt_key)
 	prompt_label = _label("", S, UITheme.TEXT)
 	prompt_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -491,7 +512,7 @@ func _build_menu() -> void:
 	menu_sub.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	hrow.add_child(menu_sub)
 	var close := _hbox(6)
-	close.add_child(_keycap("TAB"))
+	close.add_child(_keycap("menu"))
 	var cl := _label("FECHAR", S, UITheme.MUTED)
 	cl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	close.add_child(cl)
@@ -731,7 +752,7 @@ func _update_world_menu() -> void:
 ## O menu principal, uma janela separada, o menu de contexto ou a criação de personagem
 ## estão abertos (o personagem não anda).
 func blocks_input() -> bool:
-	return menu_root.visible or window_kind != "" or creation_root.visible
+	return menu_root.visible or window_kind != "" or creation_root.visible or (pause_menu != null and pause_menu.visible)
 
 
 # ------------------------------------------------------------------ janela separada
@@ -938,7 +959,7 @@ func _input(event: InputEvent) -> void:
 		return
 	if Game.console != null and Game.console.is_open():
 		return
-	if creation_root.visible:
+	if creation_root.visible or pause_menu.visible:
 		return
 	var p := _player()
 	if p == null or p.data == null:
@@ -967,6 +988,9 @@ func _input(event: InputEvent) -> void:
 		set_build_mode(not build_mode)
 	elif event.is_action_pressed("cancel") and build_mode:
 		set_build_mode(false)
+	elif event.is_action_pressed("cancel") and not pause_menu.visible:
+		get_viewport().set_input_as_handled()
+		pause_menu.open()
 	elif build_mode and event.is_action_pressed("demolish"):
 		p.demolish = not p.demolish
 		p.build_kind = ""
@@ -1073,7 +1097,7 @@ func _process(delta: float) -> void:
 		var txt: String = p.nearby.prompt()
 		prompt_panel.visible = txt != ""
 		prompt_key.visible = txt.begins_with("[E]")
-		prompt_label.text = txt.trim_prefix("[E] ").to_upper()
+		prompt_label.text = InputSetup.fix_text(txt.trim_prefix("[E] ")).to_upper()
 	else:
 		prompt_panel.visible = false
 	if prompt_panel.visible:

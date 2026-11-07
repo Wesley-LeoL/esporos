@@ -159,7 +159,10 @@ func _show_title() -> void:
 	box.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	vb.add_child(box)
 	var help := Label.new()
-	help.text = "WASD MOVER · ESPAÇO/CLIQUE ATACAR · E INTERAGIR · TAB MENU\nX DEMOLIR · F5 SALVAR · ESC CANCELA · F1 CONSOLE DE TESTES"
+	help.text = "%s%s%s%s MOVER · %s/CLIQUE ATACAR · %s INTERAGIR · %s MENU\n%s SALVAR · ESC PAUSA (E TROCA DE TECLAS) · F1 CONSOLE DE TESTES" % [
+		InputSetup.key_text("move_up"), InputSetup.key_text("move_left"), InputSetup.key_text("move_down"),
+		InputSetup.key_text("move_right"), InputSetup.key_text("attack"), InputSetup.key_text("interact"),
+		InputSetup.key_text("menu"), InputSetup.key_text("save")]
 	help.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	help.add_theme_color_override("font_color", UITheme.MUTED)
 	box.add_child(help)

@@ -171,6 +171,18 @@ func debug_command(cmd: String) -> void:
 			hud.open_menu(int(arg))
 		"close":
 			hud.close_menu()
+		"pause":
+			# menu de pausa; "controles" abre direto a tela de teclas (testes)
+			hud.pause_menu.open()
+			if arg == "controles":
+				hud.pause_menu._show_controls()
+			elif arg == "titulo":
+				hud.pause_menu._back_to_title()
+		"rebind":
+			# rebind:acao,TECLA (ex.: rebind:interact,G) — testes da troca de teclas
+			var ev := InputEventKey.new()
+			ev.physical_keycode = OS.find_keycode_from_string(a[1])
+			Game.say("troca: " + InputSetup.rebind(a[0], 0, ev) + " · interact=" + InputSetup.key_text("interact") + " · shove=" + InputSetup.key_text("shove"))
 		"battery":
 			p.data.battery = float(arg)
 		"filter":
@@ -406,6 +418,15 @@ func debug_command(cmd: String) -> void:
 			for n in get_tree().get_nodes_in_group("vehicles"):
 				if (n as Node2D).position.distance_to(p.position) < 140.0:
 					hud.open_vehicle(n)
+		"esc":
+			# aperta e solta o ESC de verdade, passando pelos _input (testes do menu de pausa)
+			for down in [true, false]:
+				var ke := InputEventKey.new()
+				ke.physical_keycode = KEY_ESCAPE
+				ke.keycode = KEY_ESCAPE
+				ke.pressed = down
+				Input.parse_input_event(ke)
+			say("pausa aberta=%s pausado=%s" % [hud.pause_menu.visible, get_tree().paused])
 		"press":
 			Input.action_press(arg)
 		"release":
