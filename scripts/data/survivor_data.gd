@@ -697,7 +697,10 @@ func _tick_body(delta: float, env: Dictionary) -> void:
 			_warn("sono", "Você está exausto: durma numa cama ([E]).", 60.0)
 	# chuva molha quem está fora de prédio; seca no abrigo e perto do fogo
 	var under := bool(env.get("abrigo", false))
-	if env.get("chuva", false) and not under:
+	if env.get("vau", false):
+		# atravessando o rio a pé: molha até a cintura
+		molhado = minf(100.0, maxf(molhado, minf(60.0, molhado + 25.0 * delta)))
+	elif env.get("chuva", false) and not under:
 		molhado = minf(100.0, molhado + 1.6 * delta)
 	elif env.get("fogo", false):
 		molhado = maxf(0.0, molhado - 1.6 * delta)
@@ -1203,6 +1206,11 @@ func use_item(ref: Variant) -> void:
 			elif inst.has("venc") and fl < 0.35:
 				calories = minf(MAX_CAL, calories + cal * 0.75)
 				message.emit("Você comeu: %s (passado)." % def["nome"])
+			elif def.get("cru", false):
+				calories = minf(MAX_CAL, calories + cal)
+				_hurt(6.0, "Intoxicação alimentar")
+				tainted_t = maxf(tainted_t, 30.0)
+				message.emit("Carne crua: mata a fome, mas você passa mal. Asse no fogareiro.")
 			else:
 				calories = minf(MAX_CAL, calories + cal)
 				message.emit("Você comeu: %s." % def["nome"])

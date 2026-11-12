@@ -414,6 +414,20 @@ func _initialize() -> void:
 	var first_tipo := String(Items.def(o.bags["mochila"][0]["id"])["tipo"])
 	check(first_tipo == "arma", "organizar põe as armas primeiro (%s)" % first_tipo)
 
+	# caça: carne crua, couro e receitas
+	var hunter := SurvivorData.from_spec({"nome": "Caçador", "forca": 5, "resist": 5, "skills": {}, "traits": []}, r)
+	hunter.calories = 800.0
+	hunter.give("carne_crua", 1)
+	var hp_raw := hunter.hp
+	hunter.use_item("carne_crua")
+	check(hunter.hp < hp_raw and hunter.calories > 800.0, "carne crua alimenta, mas faz mal")
+	hunter.give("couro", 5)
+	hunter.give("faca", 1)
+	hunter.skills["carpintaria"]["lv"] = 1
+	check(hunter.craft("jaqueta_couro") and hunter.count("jaqueta_couro") >= 1 and hunter.count("couro") == 0, "5 couros e uma faca viram um sobretudo de couro")
+	check(DB.CRAFTS.has("carne_assada") and DB.ITEMS["carne_assada"].get("cozido", false) and DB.CRAFTS["carne_assada"]["estacao"] == "fogareiro",
+		"carne assada se faz no fogareiro")
+
 	# troca de teclas (menu de pausa > controles)
 	var inp: Node = root.get_node("InputSetup")
 	if not InputMap.has_action("interact"):

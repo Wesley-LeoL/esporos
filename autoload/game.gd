@@ -189,6 +189,90 @@ func debug_command(cmd: String) -> void:
 				p.data.equip["mascara"]["filtro"] = float(arg)
 		"spawn":
 			world.spawn_infected(p.position + Vector2(70, 35), arg == "elite")
+		"animal":
+			# animal:tipo[,dx,dy] (testes)
+			var aoff := Vector2(90, 30) if a.size() < 3 else Vector2(float(a[1]), float(a[2]))
+			world.spawn_animal(p.position + aoff, a[0] if a[0] != "" else "veado")
+		"anstate":
+			# lista os animais: tipo, distância, estado e vida (testes)
+			var out := "animais:"
+			for n in get_tree().get_nodes_in_group("animals"):
+				var an := n as Animal
+				out += " %s d=%d st=%d hp=%d" % [an.kind, int(an.position.distance_to(p.position)), an.state, int(an.hp)]
+			for n in get_tree().get_nodes_in_group("corpses"):
+				out += " | carcaça %s: %s" % [(n as Corpse).nome, str((n as Corpse).items.map(func(it): return "%s x%d" % [it["id"], int(it.get("n", 1))]))]
+			say(out + " | vida %d" % int(p.data.hp))
+		"wetcheck":
+			# confere a colisão da água em volta do jogador (testes)
+			var space := world.get_world_2d().direct_space_state
+			var pc2 := world.cell_at(p.position)
+			var wet_hit := 0
+			var wet_n := 0
+			var dry_hit := 0
+			var dry_n := 0
+			for dx in range(-6, 7):
+				for dy in range(-6, 7):
+					var cc := pc2 + Vector2i(dx, dy)
+					var q := PhysicsPointQueryParameters2D.new()
+					q.position = world.ground.map_to_local(cc)
+					q.collision_mask = 1
+					var hit := not space.intersect_point(q, 1).is_empty()
+					if world.water_cells.has(cc):
+						var shore := false
+						for dv in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+							if not world.water_cells.has(cc + dv):
+								shore = true
+						if shore:
+							wet_n += 1
+							wet_hit += 1 if hit else 0
+					elif not world.occupied.has(cc) and not world.house_cells.has(cc):
+						dry_n += 1
+						dry_hit += 1 if hit else 0
+			say("água: margem bloqueada %d/%d · chão livre bloqueado %d/%d · vau aqui=%s" % [wet_hit, wet_n, dry_hit, dry_n, world.is_ford(p.position)])
+		"hurtanimal":
+			# fere o animal mais perto (testes): hurtanimal:dano
+			var ba: Animal = null
+			for n in get_tree().get_nodes_in_group("animals"):
+				if ba == null or (n as Node2D).position.distance_to(p.position) < ba.position.distance_to(p.position):
+					ba = n as Animal
+			if ba != null:
+				ba.take_damage(float(arg) if arg != "" else 10.0, p)
+		"tpgeo":
+			# tpgeo:ponte|vau|agua|floresta — vai para o mais perto (testes)
+			var best_c := Vector2i.ZERO
+			var best_d := 1e9
+			var pc := world.cell_at(p.position)
+			var src: Array = []
+			match arg:
+				"ponte": src = world.bridge_cells.keys()
+				"vau": src = world.ford_cells.keys()
+				"agua": src = world.water_cells.keys()
+				_:
+					for ch in world.plan:
+						for e in world.plan[ch]:
+							if e["t"] == "p" and String(e["art"]) in ["arvore", "pinheiro"]:
+								src.append(e["cell"])
+			for c: Vector2i in src:
+				var dd := Vector2(c - pc).length()
+				if arg == "agua":
+					# fica na margem: a célula seca vizinha
+					var dry := false
+					for dv in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+						if not world.water_cells.has(c + dv) and not world.ford_cells.has(c + dv):
+							dry = true
+					if not dry:
+						continue
+				if dd < best_d:
+					best_d = dd
+					best_c = c
+			if arg == "agua":
+				for dv in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+					if not world.water_cells.has(best_c + dv) and not world.ford_cells.has(best_c + dv):
+						best_c += dv
+						break
+			elif arg == "floresta" or arg == "":
+				best_c += Vector2i(1, 1)
+			p.teleport(world.ground.map_to_local(best_c))
 		"spawnk":
 			# spawnk:tipo[,dx,dy] (testes)
 			var off := Vector2(70, 35) if a.size() < 3 else Vector2(float(a[1]), float(a[2]))

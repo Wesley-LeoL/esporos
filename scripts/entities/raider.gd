@@ -11,7 +11,13 @@ const WEAPONS := {
 	"espingarda": {"alcance": 200.0, "dano": 22.0, "cadencia": 1.8, "mira": 0.6, "ruido": 900.0},
 	"faca": {"alcance": 28.0, "dano": 11.0, "cadencia": 1.2, "mira": 1.0, "ruido": 0.0},
 	"taco": {"alcance": 30.0, "dano": 14.0, "cadencia": 1.5, "mira": 1.0, "ruido": 0.0},
+	"cano": {"alcance": 30.0, "dano": 13.0, "cadencia": 1.4, "mira": 1.0, "ruido": 0.0},
+	"martelo": {"alcance": 26.0, "dano": 12.0, "cadencia": 1.3, "mira": 1.0, "ruido": 0.0},
+	"machete": {"alcance": 30.0, "dano": 18.0, "cadencia": 1.6, "mira": 1.0, "ruido": 0.0},
 }
+## Sorteio da arma: [arma, peso]. A maioria luta corpo a corpo; arma de fogo é rara
+## (munição é escassa): cerca de 1 em cada 6.
+const WEAPON_ODDS := [["taco", 24], ["faca", 22], ["cano", 16], ["martelo", 10], ["machete", 10], ["pistola", 13], ["espingarda", 5]]
 
 var weapon := "pistola"
 var home := Vector2.ZERO
@@ -65,6 +71,18 @@ func _ready() -> void:
 	_goal = position
 	net_pos = position
 	_seen_hp = hp
+
+
+static func roll_weapon(r: RandomNumberGenerator) -> String:
+	var total := 0
+	for e in WEAPON_ODDS:
+		total += int(e[1])
+	var roll := r.randi() % total
+	for e in WEAPON_ODDS:
+		roll -= int(e[1])
+		if roll < 0:
+			return String(e[0])
+	return "taco"
 
 
 func ranged() -> bool:

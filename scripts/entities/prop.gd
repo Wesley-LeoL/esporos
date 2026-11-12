@@ -11,6 +11,10 @@ var source := "gen"
 
 var _light: PointLight2D
 var _lit_t := 0.0
+## Árvores ficam translúcidas quando o jogador passa por trás delas (para não sumir na floresta).
+const TREES := ["arvore", "pinheiro", "arvore_morta", "arvore_rua"]
+var _tree := false
+var _fade_t := 0.0
 const LAMPS := {"poste_rua": [Color(1.0, 0.95, 0.85), 2.0, -80.0], "poste_neon": [Color(1.0, 0.72, 0.38), 1.6, -60.0],
 	"tambor_fogo": [Color(1.0, 0.6, 0.3), 1.3, -24.0]}
 
@@ -36,6 +40,10 @@ func _ready() -> void:
 		_light.enabled = false
 		add_child(_light)
 		set_process(true)
+	elif art in TREES:
+		_tree = true
+		_fade_t = randf() * 0.2
+		set_process(true)
 	else:
 		set_process(false)
 
@@ -54,6 +62,20 @@ func interact(_p: Player) -> void:
 
 
 func _process(delta: float) -> void:
+	if _tree:
+		_fade_t -= delta
+		if _fade_t <= 0.0:
+			_fade_t = 0.12
+			var want := 1.0
+			var lp: Player = Game.world.local_player() if Game.world != null else null
+			if lp != null:
+				var off := lp.position - position
+				# o jogador está atrás do tronco/copa: acima do pé da árvore e dentro da largura dela
+				if off.y < 2.0 and off.y > -70.0 and absf(off.x) < 22.0:
+					want = 0.4
+			if not is_equal_approx(modulate.a, want):
+				modulate.a = move_toward(modulate.a, want, 0.2)
+		return
 	if _light == null:
 		set_process(false)
 		return

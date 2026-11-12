@@ -1,8 +1,9 @@
 class_name MapGen
 extends RefCounted
-## Geração do mapa: cidades pequenas e aldeias espalhadas pelo campo, ligadas por estradas.
-## Cada lugar tem um estado:
-##   viva       uma das 16 vilas vivas (NPCs, comércio, pedidos de socorro)
+## Geração do mapa: poucas cidades pequenas e aldeias, longe umas das outras, ligadas por
+## estradas, no meio de um campo com florestas, rios e lagos (pontes onde a estrada cruza um
+## rio). Cada lugar tem um estado:
+##   viva       uma das vilas vivas (World.N_VILLAGES; NPCs, comércio, pedidos de socorro)
 ##   abandonada janelas quebradas, paredes caídas, entulho e mais saque
 ##   esporos    tomada pelos esporos: fungo dentro e fora das casas, ar pesado, mais infectados
 ##
@@ -42,6 +43,8 @@ const ZONE := Vector2i(-160, 420)
 const ZONE_STEP := 12
 const TYPE_NAMES := {"casa": "casa", "loja": "loja", "mercado": "mercado", "bar": "bar", "clinica": "clínica",
 	"oficina": "oficina", "celeiro": "celeiro"}
+## Distância mínima (tiles) entre as bordas de dois lugares.
+const PLACE_GAP := 36.0
 const TOWN_MIX := {"casa": 36, "loja": 16, "mercado": 8, "bar": 9, "clinica": 9, "oficina": 12, "predio": 14}
 const HAMLET_MIX := {"casa": 70, "celeiro": 18, "oficina": 12}
 
@@ -68,6 +71,7 @@ func generate() -> void:
 		else:
 			_hamlet_core(pl)
 	_connect_places()
+	_water()
 	for pl in w.places:
 		if pl.has("cerca"):
 			_fence(pl)
@@ -82,13 +86,14 @@ func generate() -> void:
 # ------------------------------------------------------------------ lugares
 func _places() -> void:
 	var specs: Array = []
-	for e in ["viva", "viva", "viva", "abandonada", "abandonada", "esporos"]:
+	# poucos lugares, bem separados: 4 cidades e 10 aldeias num mapa de 150 tiles de raio
+	for e in ["viva", "viva", "abandonada", "esporos"]:
 		specs.append(["cidade", e])
-	for i in 13:
+	for i in World.N_VILLAGES - 2:
 		specs.append(["aldeia", "viva"])
-	for i in 6:
-		specs.append(["aldeia", "abandonada"])
 	for i in 3:
+		specs.append(["aldeia", "abandonada"])
+	for i in 2:
 		specs.append(["aldeia", "esporos"])
 	for sp in specs:
 		var tipo: String = sp[0]
@@ -107,7 +112,7 @@ func _places() -> void:
 			var c := Vector2i(roundi(cos(ang) * dist), roundi(sin(ang) * dist))
 			var ok := true
 			for o in w.places:
-				if Vector2(c - o["cell"]).length() < float(r + int(o["r"])) + 12.0:
+				if Vector2(c - o["cell"]).length() < float(r + int(o["r"])) + PLACE_GAP:
 					ok = false
 					break
 			if not ok:
@@ -311,6 +316,133 @@ func _carve(a: Vector2i, b: Vector2i, asphalt: bool) -> void:
 		else:
 			_road(p, World.T.TERRA_BATIDA)
 			_road(p + (Vector2i(0, 1) if along_x else Vector2i(1, 0)), World.T.TERRA_BATIDA)
+
+
+# ------------------------------------------------------------------ rios, lagos e pontes
+## Rios atravessam o mapa de borda a borda, desviando dos lugares; lagos ficam no campo.
+## Onde um rio cruza uma estrada, as células da estrada viram ponte (continuam estrada).
+func _water() -> void:
+	var rivers := 0
+	for attempt in 400:
+		if rivers >= 2:
+			break
+		if _river():
+			rivers += 1
+	var lakes := 0
+	for attempt in 80:
+		if lakes >= 5:
+			break
+		if _lake():
+			lakes += 1
+
+
+func _water_ok(c: Vector2i, margin: int) -> bool:
+	if Vector2(c).length() < 9.0:
+		return false
+	for pl in w.places:
+		if Vector2(c - pl["cell"]).length() < float(pl["r"]) + float(margin):
+			return false
+	return true
+
+
+func _river() -> bool:
+	var a0 := rng.randf() * TAU
+	var a1 := a0 + PI + rng.randf_range(-0.9, 0.9)
+	var p0 := Vector2.from_angle(a0) * (World.RADIUS + 3.0)
+	var p3 := Vector2.from_angle(a1) * (World.RADIUS + 3.0)
+	var perp := (p3 - p0).normalized().orthogonal()
+	var p1 := p0.lerp(p3, 0.33) + perp * rng.randf_range(-70.0, 70.0)
+	var p2 := p0.lerp(p3, 0.66) + perp * rng.randf_range(-70.0, 70.0)
+	var freq := rng.randf_range(5.0, 9.0)
+	var amp := rng.randf_range(2.5, 5.0)
+	var phase := rng.randf() * TAU
+	var half := rng.randf_range(1.5, 2.3)
+	var cells := {}
+	# vaus: de tempos em tempos o rio fica raso por uns 3 tiles (dá para atravessar a pé)
+	var fords := {}
+	var run := 0.0
+	var next_ford := rng.randf_range(18.0, 30.0)
+	var last_q := p0
+	var steps := int(p0.distance_to(p3) * 2.5)
+	for i in steps + 1:
+		var t := float(i) / float(steps)
+		var q := p0.bezier_interpolate(p1, p2, p3, t)
+		var tang := p0.bezier_derivative(p1, p2, p3, t).normalized()
+		q += tang.orthogonal() * sin(t * freq * TAU + phase) * amp * sin(t * PI)
+		if q.length() > World.RADIUS + 4.0:
+			continue
+		if not _water_ok(Vector2i(q.round()), 7):
+			return false
+		run += q.distance_to(last_q)
+		last_q = q
+		if run > next_ford + 3.0:
+			run = 0.0
+			next_ford = rng.randf_range(32.0, 50.0)
+		var in_ford := run >= next_ford
+		var hw := half + 0.5 * sin(t * 23.0 + phase)
+		var ri := ceili(hw)
+		for dx in range(-ri, ri + 1):
+			for dy in range(-ri, ri + 1):
+				var c := Vector2i(roundi(q.x) + dx, roundi(q.y) + dy)
+				if Vector2(c).distance_to(q) <= hw and Vector2(c).length() <= World.RADIUS + 4.0:
+					cells[c] = true
+					if in_ford and Vector2(c).length() < World.RADIUS - 8.0:
+						fords[c] = true
+	# pontes: curtas. Um rio que corre por cima de uma estrada por um trecho longo não serve.
+	var bridge := 0
+	for c: Vector2i in cells:
+		if w.road_cells.has(c):
+			bridge += 1
+	if bridge > 60 or cells.size() < 200:
+		return false
+	_commit_water(cells)
+	for c: Vector2i in fords:
+		if w.water_cells.has(c):
+			w.water_cells.erase(c)
+			w.ford_cells[c] = true
+	return true
+
+
+func _lake() -> bool:
+	var c0 := _random_open()
+	var r := rng.randf_range(4.0, 8.5)
+	var sx := rng.randf_range(0.75, 1.3)
+	var ph := rng.randf() * TAU
+	var cells := {}
+	var ri := ceili(r * 1.5)
+	for dx in range(-ri, ri + 1):
+		for dy in range(-ri, ri + 1):
+			var c := c0 + Vector2i(dx, dy)
+			var off := Vector2(float(dx) / sx, float(dy) * sx)
+			var ang := off.angle()
+			var edge := r * (1.0 + 0.16 * sin(ang * 3.0 + ph) + 0.1 * sin(ang * 5.0 - ph * 2.0))
+			if off.length() > edge:
+				continue
+			if w.road_cells.has(c) or not _water_ok(c, 8) or Vector2(c).length() > World.RADIUS - 6.0:
+				return false
+			cells[c] = true
+	# nenhuma estrada colada na margem (o lago não ganha ponte)
+	for c: Vector2i in cells:
+		for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			if w.road_cells.has(c + d):
+				return false
+	_commit_water(cells)
+	return true
+
+
+func _commit_water(cells: Dictionary) -> void:
+	for c: Vector2i in cells:
+		if w.road_cells.has(c):
+			var along_x: bool = w.road_cells.has(c + Vector2i(1, 0)) or w.road_cells.has(c - Vector2i(1, 0))
+			var along_y: bool = w.road_cells.has(c + Vector2i(0, 1)) or w.road_cells.has(c - Vector2i(0, 1))
+			# numa estrada de 2 células, a vizinha de lado também é estrada: vale o sentido mais longo
+			if along_x and along_y:
+				along_x = w.road_cells.has(c + Vector2i(2, 0)) or w.road_cells.has(c - Vector2i(2, 0))
+			w.road_cells[c] = World.T.PONTE_X if along_x else World.T.PONTE_Y
+			w.bridge_cells[c] = true
+		else:
+			w.water_cells[c] = true
+			w.ground_cells.erase(c)
 
 
 # ------------------------------------------------------------------ lugares: prédios e objetos
@@ -829,9 +961,9 @@ func _field_near(c: Vector2i, r: int) -> void:
 func _countryside() -> void:
 	# casas isoladas (fazendas e ruínas) perto das estradas
 	var keys: Array = w.road_cells.keys()
-	for i in 34:
+	for i in 16:
 		var rc: Vector2i = keys[rng.randi() % keys.size()]
-		if _near_place(rc, 4):
+		if _near_place(rc, 8) or w.bridge_cells.has(rc):
 			continue
 		var tipo := "casa" if rng.randf() < 0.7 else "celeiro"
 		var sz := Vector2i(rng.randi_range(3, 5), rng.randi_range(3, 4))
@@ -843,15 +975,7 @@ func _countryside() -> void:
 		var side := _facing(rect, rc, false)
 		if _house(rect, tipo, estado, side) and rng.randf() < 0.4:
 			_field_near(rect.get_center(), 3)
-	# bosques
-	for i in 80:
-		var c2 := _random_open()
-		var dead := w.spore_level_cell(c2) > 0.45
-		for t in rng.randi_range(5, 14):
-			var p := c2 + Vector2i(rng.randi_range(-4, 4), rng.randi_range(-4, 4))
-			if w._free_cell(p) and not w.ground_cells.has(p):
-				var kind: String = "arvore_morta" if dead and rng.randf() < 0.7 else ["arvore", "arvore", "pinheiro"][rng.randi() % 3]
-				w._add_prop(kind, (rng.randi() % 2) if kind == "arvore" else 0, p)
+	_forests()
 	# pedras, arbustos e fungos
 	for i in 450:
 		var c4 := _random_open()
@@ -870,6 +994,49 @@ func _countryside() -> void:
 			if w._free_cell(rc2 + d) and not w.road_cells.has(rc2 + d):
 				w._add_prop("carro_queimado", rng.randi() % 2, rc2 + d)
 				break
+
+
+## Florestas: manchas grandes saídas de um ruído (miolo fechado, borda rala), árvores
+## soltas pelo campo e juncos na beira da água. Perto dos esporos as árvores morrem.
+func _forests() -> void:
+	var fn := FastNoiseLite.new()
+	fn.seed = w.seed_value + 311
+	fn.frequency = 0.03
+	fn.fractal_octaves = 2
+	var R := int(World.RADIUS) - 4
+	for x in range(-R, R + 1):
+		for y in range(-R, R + 1):
+			var c := Vector2i(x, y)
+			if Vector2(c).length() > float(R) or Vector2(c).length() < 7.0:
+				continue
+			var f := fn.get_noise_2d(float(x), float(y))
+			var chance := 0.006
+			if f > 0.2:
+				chance = 0.2
+			elif f > 0.08:
+				chance = 0.09
+			if rng.randf() >= chance:
+				continue
+			if not w._free_cell(c) or w.ground_cells.has(c) or _near_place(c, 3) or _near_road(c):
+				continue
+			var spore := w.spore_level_cell(c)
+			var kind := "arvore"
+			if spore > 0.45 and rng.randf() < 0.75:
+				kind = "arvore_morta"
+			elif fn.get_noise_2d(float(x) + 500.0, float(y) - 300.0) > 0.1:
+				kind = "pinheiro" if rng.randf() < 0.75 else "arvore"
+			elif rng.randf() < 0.15:
+				kind = "pinheiro"
+			w._add_prop(kind, (rng.randi() % 2) if kind == "arvore" else 0, c)
+			w.tree_count += 1
+
+
+## Encostado numa estrada (as árvores não nascem na beira da pista).
+func _near_road(c: Vector2i) -> bool:
+	for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+		if w.road_cells.has(c + d):
+			return true
+	return false
 
 
 func _near_place(c: Vector2i, extra: int) -> bool:
@@ -896,7 +1063,7 @@ func _vehicles() -> void:
 	for c: Vector2i in w.road_cells.keys():
 		if vr.randf() > 0.012 or Vector2(c).length() < 10.0 or Vector2(c).length() > World.RADIUS * 0.8:
 			continue
-		if _near_place(c, 0):
+		if _near_place(c, 0) or w.bridge_cells.has(c):
 			continue
 		if w._free_road(c):
 			w.vehicle_spots.append({"kind": "moto" if vr.randf() < 0.3 else "picape", "cell": c})

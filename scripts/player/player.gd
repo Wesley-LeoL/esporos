@@ -252,6 +252,9 @@ func _local_control(delta: float) -> void:
 		mult *= 1.55
 	elif sneaking:
 		mult *= 0.55
+	# vau: dá para atravessar o rio, mas devagar (a pé ou de veículo)
+	if world.is_ford(position):
+		mult *= 0.5
 	velocity = Vector2(input.x, input.y * ISO_Y_SCALE) * SPEED * mult
 	move_and_slide()
 	net_pos = position
@@ -847,13 +850,14 @@ func _server_attack(_dir_index: int, aim_angle: float) -> void:
 				Game.tell(peer, "Golpe furtivo!")
 			e.take_damage(dmg * (3.0 if sneak else 1.0), self, 0.35 + heavy + (0.6 if sneak else 0.0))
 			hit = true
-	for n2 in get_tree().get_nodes_in_group("raiders"):
-		var rd := n2 as Node2D
-		var off2 := rd.position - pos
-		var iso2 := Vector2(off2.x, off2.y * 2.0)
-		if iso2.length() < 65.0 and iso2.normalized().dot(dir) > 0.3:
-			rd.take_hit(dmg, self)
-			hit = true
+	for g in ["raiders", "animals"]:
+		for n2 in get_tree().get_nodes_in_group(g):
+			var rd := n2 as Node2D
+			var off2 := rd.position - pos
+			var iso2 := Vector2(off2.x, off2.y * 2.0)
+			if iso2.length() < 65.0 and iso2.normalized().dot(dir) > 0.3:
+				rd.take_hit(dmg, self)
+				hit = true
 	if hit:
 		data.on_melee_hit()
 		world.make_noise(pos, 150.0)
@@ -996,22 +1000,24 @@ func _server_fire(gun: Dictionary, aim_angle: float) -> void:
 	var hits := 0
 	for i in int(def.get("chumbos", 1)):
 		var dir := Vector2.from_angle(aim_angle + randf_range(-spread, spread))
-		var best: Infected = null
+		# o tiro acerta o primeiro alvo na linha: infectado, saqueador ou animal
+		var best: Node2D = null
 		var best_t := reach
-		for n in get_tree().get_nodes_in_group("infected"):
-			var e := n as Infected
-			var off := e.position - pos
-			var iso := Vector2(off.x, off.y * 2.0)
-			var t := iso.dot(dir)
-			if t < 0.0 or t > best_t:
-				continue
-			if absf(iso.cross(dir)) < 16.0:
-				best = e
-				best_t = t
+		for g in ["infected", "raiders", "animals"]:
+			for n in get_tree().get_nodes_in_group(g):
+				var e := n as Node2D
+				var off := e.position - pos
+				var iso := Vector2(off.x, off.y * 2.0)
+				var t := iso.dot(dir)
+				if t < 0.0 or t > best_t:
+					continue
+				if absf(iso.cross(dir)) < (10.0 if e is Animal and (e as Animal).kind == "coelho" else 16.0):
+					best = e
+					best_t = t
 		var end_iso := dir * best_t
 		ends.append(pos + Vector2(end_iso.x, end_iso.y * 0.5) + Vector2(0, -14))
 		if best != null:
-			best.take_damage(float(def["dano"]) * (1.0 - 0.4 * best_t / reach), self, 0.25 if int(def.get("chumbos", 1)) > 1 else 0.08)
+			best.call("take_damage", float(def["dano"]) * (1.0 - 0.4 * best_t / reach), self, 0.25 if int(def.get("chumbos", 1)) > 1 else 0.08)
 			hits += 1
 	data.add_xp("pontaria", 0.6 + 2.0 * float(hits))
 	world.shot_fx.rpc(muzzle, ends)

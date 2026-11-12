@@ -8,6 +8,8 @@ const LIFETIME := 300.0
 var nome := ""
 var items: Array = []
 var decomp := 0.0
+## Carcaça de animal caçado ("veado", "javali", "coelho"); "" = corpo de gente.
+var animal := ""
 var world: World
 var _attract_t := 12.0
 
@@ -23,15 +25,17 @@ func setup_net() -> void:
 
 
 func prompt() -> String:
+	if animal != "":
+		return "[E] Carcaça de %s: tirar carne e couro" % nome.to_lower()
 	return "[E] Revistar corpo de %s (decomposição %d%%)" % [nome, int(decomp)]
 
 
 func title() -> String:
-	return "Corpo de " + nome
+	return ("Carcaça de " + nome.to_lower()) if animal != "" else ("Corpo de " + nome)
 
 
 func options(_p: Player) -> Array:
-	return [{"id": "ui:loot", "txt": "Revistar o corpo", "ok": true}]
+	return [{"id": "ui:loot", "txt": "Tirar a carne e o couro" if animal != "" else "Revistar o corpo", "ok": true}]
 
 
 ## Abrir é local (janela de saque); a transferência vai pelo Player.act.
@@ -46,7 +50,8 @@ func _process(delta: float) -> void:
 		return
 	decomp += delta * 100.0 / LIFETIME
 	if decomp >= 100.0:
-		Game.say_all("O corpo de %s se desfez." % nome)
+		if animal == "":
+			Game.say_all("O corpo de %s se desfez." % nome)
 		queue_free()
 		return
 	_attract_t -= delta
@@ -62,6 +67,13 @@ func _draw() -> void:
 	# decompõe: escurece e esverdeia; some aos poucos no fim
 	var tint := Color.WHITE.lerp(Color(0.55, 0.62, 0.42), k)
 	tint.a = 1.0 if k < 0.85 else (1.0 - (k - 0.85) / 0.15 * 0.6)
+	if animal != "":
+		var tex: Texture2D = load(Animal.SHEET)
+		var src := Rect2(Vector2(4, int(Animal.KINDS[animal]["linha"])) * Animal.CELL, Animal.CELL)
+		draw_texture_rect_region(tex, Rect2(-Animal.FOOT, Animal.CELL), src, tint)
+		if items.is_empty():
+			draw_texture_rect_region(tex, Rect2(-Animal.FOOT, Animal.CELL), src, Color(0, 0, 0, 0.3))
+		return
 	GenArt.draw_frame(self, "corpse", 0, posmod(nome.hash(), 2), Vector2.ZERO, tint)
 	if items.is_empty():
 		GenArt.draw_frame(self, "corpse", 0, posmod(nome.hash(), 2), Vector2.ZERO, Color(0, 0, 0, 0.3))

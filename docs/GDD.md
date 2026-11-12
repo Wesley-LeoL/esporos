@@ -281,8 +281,8 @@ Antes de iniciarmos a lógica, preciso que você me oriente a:
 ### Mundo em chunks e vilas vivas (fase 7)
 
 - **Mapa: cidades pequenas e aldeias (29/10):**
-  - *Sem metrópole.* O mapa tem 6 cidades pequenas e cerca de 22 aldeias no campo. As cidades têm praça no centro, uma rua em anel e quatro ruas saindo dela, com lojas, mercado, bar, clínica, oficina e casas de frente para a rua. As aldeias são uma clareira com casas, celeiro e lavouras. Não há mais Abrigo Alfa: as 16 vilas vivas ficam espalhadas, cada uma cercada por uma cerca de chapas com portões onde as estradas passam (infectados não atravessam nem escolhem quem está lá dentro) e com NPCs.
-  - *Estados de cada lugar:* **viva** (as 16 vilas, com NPCs e comércio), **abandonada** (janelas quebradas, paredes caídas, telhados faltando, entulho e mais saque) ou **tomada por esporos** (fungo no chão, nas paredes e dentro das casas, ar pesado em volta e mais infectados). Também há casas isoladas na beira das estradas, quase todas abandonadas.
+  - *Sem metrópole.* (fase 26: agora são 4 cidades pequenas e 10 aldeias; ver "Campo, água e caça") O mapa tinha 6 cidades pequenas e cerca de 22 aldeias no campo. As cidades têm praça no centro, uma rua em anel e quatro ruas saindo dela, com lojas, mercado, bar, clínica, oficina e casas de frente para a rua. As aldeias são uma clareira com casas, celeiro e lavouras. Não há mais Abrigo Alfa: as 16 vilas vivas ficam espalhadas, cada uma cercada por uma cerca de chapas com portões onde as estradas passam (infectados não atravessam nem escolhem quem está lá dentro) e com NPCs.
+  - *Estados de cada lugar:* **viva** (as 7 vilas — eram 16 —, com NPCs e comércio), **abandonada** (janelas quebradas, paredes caídas, telhados faltando, entulho e mais saque) ou **tomada por esporos** (fungo no chão, nas paredes e dentro das casas, ar pesado em volta e mais infectados). Também há casas isoladas na beira das estradas, quase todas abandonadas.
   - *Estradas:* asfalto entre cidades e terra batida para as aldeias. Ao longo delas há carcaças e veículos abandonados.
   - *Prédios exploráveis:*
     - o piso é do chão (madeira, cerâmica, concreto); as paredes ficam nas bordas das células, com porta, janelas, vitrine, parede quebrada ou tomada por fungo, em 5 materiais;
@@ -328,6 +328,49 @@ Antes de iniciarmos a lógica, preciso que você me oriente a:
   - *Névoa de esporos:* +0,12 de esporos e visão a 60%.
   O clima muda a cada 3 a 7 minutos. O HUD mostra a hora e o clima.
 
+
+## Campo, água e caça (fase 26)
+
+- **Menos lugares, mais campo.** O mapa (raio 150 tiles) tem 4 cidades pequenas (2 vivas, 1
+  abandonada, 1 tomada por esporos) e 10 aldeias (5 vivas, 3 abandonadas, 2 de esporos):
+  **7 vilas vivas** (`World.N_VILLAGES`; eram 16). A distância mínima entre as bordas de dois
+  lugares é de 36 tiles (`MapGen.PLACE_GAP`; era 12). Casas isoladas na beira das estradas:
+  16 tentativas (eram 34).
+- **Florestas.** Um ruído desenha manchas grandes: miolo fechado (20% das células com árvore),
+  borda rala (9%) e árvores soltas no resto (0,6%); perto dos esporos as árvores são mortas.
+  Cerca de 4 mil árvores por mapa. A árvore fica translúcida quando o jogador passa por trás.
+- **Rios.** Dois por mapa, de borda a borda, com curvas, desviando dos lugares. A água bloqueia
+  a passagem (jogadores, veículos, infectados, saqueadores e animais) e não aceita construção.
+  - **Pontes:** onde a estrada cruza o rio, as células da estrada viram ponte de madeira.
+  - **Vaus:** a cada 30 a 50 tiles o rio fica raso por uns 3 tiles. Dá para atravessar a pé ou
+    de veículo, na metade da velocidade, e o personagem se molha (até 60%).
+- **Lagos.** Cinco por mapa, no campo, longe das estradas.
+- **Mapa (aba):** mostra rios, lagos, vaus e pontes das áreas já exploradas.
+- **Animais de caça** (`scripts/entities/animal.gd`): nascem em grupos pequenos no campo, fora
+  da vista, longe de lugares, estradas e esporos (até 5 perto de cada jogador).
+
+| Animal | Vida | Comportamento | Carcaça |
+|---|---|---|---|
+| Coelho | 8 | foge rápido; alvo pequeno | 1 carne crua, às vezes 1 couro |
+| Veado | 30 | anda em grupo de até 3; foge mais rápido que o jogador correndo | 2–3 carnes, 2 couros |
+| Javali | 48 | foge; ferido de perto, investe (9 de dano) até ficar com 35% da vida | 3–4 carnes, 1–2 couros |
+
+  - Notam o jogador a ~200 px andando, mais longe correndo ou de veículo, e só a 1/4 disso
+    agachado. Fogem também de infectados, saqueadores e barulho (tiros). Bater em um espanta
+    o bando.
+  - Morrem por golpe, tiro ou atropelamento e deixam uma carcaça ([E]: tirar carne e couro)
+    que apodrece e atrai infectados como um corpo.
+  - **Carne crua** estraga rápido e faz mal crua (−6 de vida); no fogareiro vira **carne
+    assada** (460 kcal, deixa bem alimentado) ou **carne seca** (Culinária 1).
+  - **Couro** (com uma faca): luvas de couro (1), coldre (2), bolsa de couro (3), sobretudo de
+    couro (5, Carpintaria 1).
+  - *Futuro:* animais infectados e hostis.
+- **Saqueadores com mais armas brancas:** sorteio por peso — taco 24, faca 22, cano 16,
+  martelo 10, machete 10, pistola 13, espingarda 5 (arma de fogo: ~1 em cada 6; antes eram 3
+  em cada 5). Tiros do jogador agora também acertam saqueadores e animais (antes só infectados).
+- **Arte provisória:** `tools/gen_animals.py` (folha `assets/art/generated/animals/animals.png`)
+  e os ladrilhos AGUA, VAU, PONTE_X e PONTE_Y em `tools/gen_ground.py`.
+- Save na versão 10: saves antigos mantêm os sobreviventes e o legado, num mapa novo.
 
 ## Saúde simples (fase 25)
 
@@ -437,4 +480,5 @@ ela será refeita no tema novo com o PixelLab.
 | 23 | Tema steampunk: nomes, textos, próteses no lugar de implantes, eletricidade rudimentar, paleta de latão e cobre, luzes quentes | **feito** |
 | 24 | Menu de pausa no ESC (pausa no solo; continuar, controles, salvar e voltar ao menu, salvar e sair) e troca de teclas salva em user://controles.cfg; avisos e teclas do HUD mostram a tecla atual | **feito** |
 | 25 | Saúde simples: vida única, sangramento que piora, perna torcida/quebrada com tala, curativos que curam na hora (e melhores fabricados), antibiótico que cura aos poucos, analgésico e hemostático, tônico e adrenalina para a estamina; aba Corpo removida | **feito** |
+| 26 | Menos vilas (7 vivas) e mais campo: florestas, rios com pontes e vaus, lagos; animais de caça (veado, javali, coelho) com carne e couro; saqueadores com mais armas brancas | **feito** |
 | 9 | Construção em bordas (estilo The Sims) com 3 abas, utilidades e decoração, rede de energia (eólico, combustão, baterias), mesa de reparos, dia/noite, clima e iluminação | **feito** |

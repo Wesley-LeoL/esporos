@@ -31,6 +31,41 @@ func _ready() -> void:
 			same_items = false
 	check(same_items, "mesmo loot em todas as caixas")
 	check(w1.villages.size() == World.N_VILLAGES, "%d vilas" % w1.villages.size())
+	# poucos lugares e longe uns dos outros; no meio, floresta, rios, lagos, vaus e pontes
+	var min_gap := 1e9
+	for i in w1.places.size():
+		for j in i:
+			min_gap = minf(min_gap, Vector2(w1.places[i]["cell"] - w1.places[j]["cell"]).length() - float(w1.places[i]["r"]) - float(w1.places[j]["r"]))
+	check(w1.places.size() >= 10 and w1.places.size() <= 14 and min_gap >= MapGen.PLACE_GAP, "%d lugares, o mais perto a %d tiles do vizinho" % [w1.places.size(), int(min_gap)])
+	var wet_bad := 0
+	for c: Vector2i in w1.water_cells:
+		if w1.road_cells.has(c) or w1.house_cells.has(c) or w1.occupied.has(c) or w1.ground_cells.has(c):
+			wet_bad += 1
+	check(w1.water_cells.size() > 800 and wet_bad == 0, "%d células de água, nenhuma em estrada, prédio ou objeto" % w1.water_cells.size())
+	var bridge_ok := not w1.bridge_cells.is_empty()
+	for c: Vector2i in w1.bridge_cells:
+		if not int(w1.road_cells.get(c, -1)) in [World.T.PONTE_X, World.T.PONTE_Y] or w1.water_cells.has(c) or w1._terrain(c) == World.T.AGUA:
+			bridge_ok = false
+	check(bridge_ok, "%d células de ponte onde estrada cruza rio (continuam estrada)" % w1.bridge_cells.size())
+	check(w1.ford_cells.size() >= 8, "%d células de vau (rio raso)" % w1.ford_cells.size())
+	check(w1.tree_count > 2500, "%d árvores no mapa" % w1.tree_count)
+	# saqueadores: a maioria com arma branca; animais de caça dão carne
+	var wr := RandomNumberGenerator.new()
+	wr.seed = 11
+	var ranged_n := 0
+	for i in 400:
+		var wname := Raider.roll_weapon(wr)
+		if not Raider.WEAPONS.has(wname) or not DB.ITEMS.has(wname):
+			ranged_n = 9999
+		elif float(Raider.WEAPONS[wname]["alcance"]) > 60.0:
+			ranged_n += 1
+	check(ranged_n > 30 and ranged_n < 110, "saqueadores: %d de 400 com arma de fogo (a maioria luta corpo a corpo)" % ranged_n)
+	var meat_ok := true
+	for ak: String in Animal.KINDS:
+		if int(Animal.KINDS[ak]["carne"][0]) < 1:
+			meat_ok = false
+	check(meat_ok and Animal.KINDS.size() == 3, "veado, javali e coelho dão carne")
+	check(not w1._free_cell(w1.water_cells.keys()[0]) and not w1.can_place_at("fogareiro", w1.water_cells.keys()[0]), "não dá para construir na água")
 	var far := 0.0
 	for v in w1.villages:
 		far = maxf(far, Vector2(v.cell).length())
@@ -74,7 +109,7 @@ func _ready() -> void:
 			if (w1.houses[hid3].get("floors", []) as Array).size() != int(w1.houses[hid3]["andares"]) - 1:
 				floors_ok = false
 	check(w1.houses.size() > 60 and doors.size() == ground_houses, "%d prédios exploráveis no chão, todos com porta" % ground_houses)
-	check(towers >= 4 and floors_ok, "%d prédios de 2-3 andares, com todos os andares" % towers)
+	check(towers >= 2 and floors_ok, "%d prédios de 2-3 andares, com todos os andares" % towers)
 	check(w1.stairs.size() >= towers * 2, "%d escadas" % w1.stairs.size())
 	var fenced := 0
 	for v in w1.villages:
@@ -156,7 +191,7 @@ func _ready() -> void:
 	for i in w1.container_data.size():
 		if int(w1.container_data[i].get("lock", 0)) > 0 and keys.has("c:%d" % i):
 			cont_keys += 1
-	check(locked_c > 5 and cont_keys > locked_c / 2, "%d móveis/caixas trancados, %d com chave escondida" % [locked_c, cont_keys])
+	check(locked_c >= 3 and cont_keys >= locked_c / 2, "%d móveis/caixas trancados, %d com chave escondida" % [locked_c, cont_keys])
 	check(locked_h >= 2 and house_keys > 0, "%d prédios trancados, %d com chave num vizinho" % [locked_h, house_keys])
 	var camps := 0
 	for hid2 in w1.houses:

@@ -154,6 +154,13 @@ func _server_tick(delta: float) -> void:
 			_hit_cd[e.get_instance_id()] = 0.6
 			e.take_damage(float(def()["atropelo"]) * clampf(spd / 200.0, 0.5, 1.5), self, 1.0)
 			cond = maxf(0.0, cond - 1.5)
+	for n2 in get_tree().get_nodes_in_group("animals"):
+		var an := n2 as Animal
+		var off2 := an.position - position
+		if Vector2(off2.x, off2.y * 2.0).length() < 26.0 and not _hit_cd.has(an.get_instance_id()):
+			_hit_cd[an.get_instance_id()] = 0.6
+			an.take_damage(float(def()["atropelo"]) * clampf(spd / 200.0, 0.5, 1.5), self)
+			cond = maxf(0.0, cond - 0.8)
 
 
 func to_dict() -> Dictionary:

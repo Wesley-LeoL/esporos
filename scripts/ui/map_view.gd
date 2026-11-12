@@ -102,12 +102,21 @@ func _draw() -> void:
 		elif sp >= 0.5:
 			col = Color("#3b3a1c")
 		draw_colored_polygon(_chunk_poly(ch), col)
-	# estradas
+	# rios e lagos (vaus mais claros), depois as estradas (pontes em cor de madeira)
 	var cell_px := maxf(1.5, k * 1.1)
+	for c: Vector2i in w.water_cells:
+		if known.has(World.chunk_of(c)):
+			var pw := to_map(Vector2(c) + Vector2(0.5, 0.5))
+			draw_rect(Rect2(pw - Vector2(cell_px, cell_px * 0.5) * 0.5, Vector2(cell_px, cell_px * 0.5)), Color("#2f6f8a"))
+	for c: Vector2i in w.ford_cells:
+		if known.has(World.chunk_of(c)):
+			var pf := to_map(Vector2(c) + Vector2(0.5, 0.5))
+			draw_rect(Rect2(pf - Vector2(cell_px, cell_px * 0.5) * 0.5, Vector2(cell_px, cell_px * 0.5)), Color("#6fb6c0"))
 	for c: Vector2i in w.road_cells:
 		if known.has(World.chunk_of(c)):
 			var p := to_map(Vector2(c) + Vector2(0.5, 0.5))
-			draw_rect(Rect2(p - Vector2(cell_px, cell_px * 0.5) * 0.5, Vector2(cell_px, cell_px * 0.5)), Color("#5a6470"))
+			draw_rect(Rect2(p - Vector2(cell_px, cell_px * 0.5) * 0.5, Vector2(cell_px, cell_px * 0.5)),
+				Color("#b98a52") if w.bridge_cells.has(c) else Color("#5a6470"))
 	# prédios descobertos (cor pelo estado do lugar)
 	for id in w.houses:
 		var hd: Dictionary = w.houses[id]

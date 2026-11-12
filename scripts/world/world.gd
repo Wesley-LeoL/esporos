@@ -24,14 +24,15 @@ const SAFE_RADIUS_PX := 325.0
 const SEAL_RADIUS := 190.0
 const POWER_RADIUS_PX := 525.0
 const PURIFY_RADIUS_PX := 150.0
-const N_VILLAGES := 16
+const N_VILLAGES := 7
 ## Vida de cada trecho da cerca por nível (1 chapa, 2 chapa reforçada, 3 muralha).
 const FENCE_HP := [0.0, 400.0, 800.0, 1500.0]
 const FENCE_MAT := ["muro", "muro", "muro2", "muro3"]
 
 ## Tipos de chão (colunas do atlas gerado; os índices vão para os saves).
 enum T { CONC_A, CONC_B, ESPOROS, ESTRADA, TERRA, PISO, MANCHA, VILA, PISO_MADEIRA, PISO_CONCRETO,
-	GRAMA, GRAMA_SECA, CALCADA, FAIXA_X, FAIXA_Y, TERRA_BATIDA, ZEBRA_X, ZEBRA_Y, LAVOURA, GRAMA_ESPOROS, AZULEJO, CARPETE }
+	GRAMA, GRAMA_SECA, CALCADA, FAIXA_X, FAIXA_Y, TERRA_BATIDA, ZEBRA_X, ZEBRA_Y, LAVOURA, GRAMA_ESPOROS, AZULEJO, CARPETE,
+	AGUA, PONTE_X, PONTE_Y, VAU }
 
 ## Clima: [peso do sorteio, vento mínimo, vento máximo].
 const WEATHERS := {"limpo": [35, 0.15, 0.4], "nublado": [25, 0.3, 0.6], "chuva": [20, 0.4, 0.7],
@@ -50,10 +51,10 @@ const BUILDINGS: Array = [["BuildingBlock1", 15], ["BuildingBlock2", 15], ["Buil
 	["BuildingBlock19", 20], ["BuildingBlock24", 25], ["Building3", 5]]
 const PROPS: Array[String] = ["Advertising5", "Advertising6", "Advertising7", "SateliteDish2"]
 ## Versão do save: muda quando a geração do mundo muda (saves antigos não batem com o mapa).
-const SAVE_VERSION := 9
+const SAVE_VERSION := 10
 ## Versões de save que ainda carregam. Antes da 5 o mapa era outro (raio 64, sem chunks):
 ## desses saves só os sobreviventes e o legado são aproveitados (ver Game.read_save).
-const SAVE_COMPAT := [3, 4, 5, 6, 7, 8, 9]
+const SAVE_COMPAT := [3, 4, 5, 6, 7, 8, 9, 10]
 const VILLAGE_NAMES: Array[String] = ["Nova Esperança", "Poço Seco", "Torre Cinza", "Vila Ferrugem",
 	"Entreposto 9", "Vale Mudo", "Posto da Caldeira", "Ninho Baixo", "Cais Morto", "Estação Fênix", "Morro Azul",
 	"Forte do Latão", "Cratera", "Porto Velho", "Colmeia", "Sétima Linha", "Refúgio Sul", "Barreira Leste"]
@@ -113,6 +114,15 @@ var vehicle_spots: Array = []
 var terrain_deltas := {}
 var removed_cells := {}
 var road_cells := {}
+## Água (rios e lagos): célula -> true. Não dá para andar nem construir; onde uma estrada
+## cruza um rio a célula vira ponte (fica em road_cells, fora daqui).
+var water_cells := {}
+## Vaus: trechos rasos do rio. Dá para atravessar a pé, devagar e se molhando.
+var ford_cells := {}
+## Células de estrada que são ponte (sobre um rio).
+var bridge_cells := {}
+## Árvores plantadas pela geração (só para conferência).
+var tree_count := 0
 ## Lugares do mapa (MapGen): [{"cell", "tipo" cidade/aldeia, "estado" viva/abandonada/esporos,
 ## "r" raio, "nome", "vid" vila viva ou -1}].
 var places: Array = []
@@ -226,6 +236,10 @@ func _terrain(c: Vector2i) -> int:
 		return int(ground_cells.get(c, -1))
 	if road_cells.has(c):
 		return int(road_cells[c])
+	if water_cells.has(c):
+		return T.AGUA
+	if ford_cells.has(c):
+		return T.VAU
 	var t: int
 	if ground_cells.has(c):
 		t = int(ground_cells[c])
@@ -369,6 +383,7 @@ func _free_structure_node(s: Structure) -> void:
 
 func _free_cell(c: Vector2i) -> bool:
 	return not occupied.has(c) and not road_cells.has(c) and not field_cells.has(c) and not house_cells.has(c) \
+		and not water_cells.has(c) and not ford_cells.has(c) \
 		and (Vector2(c).length() < RADIUS - 3.0 or Vector2(c).length() > RADIUS + 60.0)
 
 
@@ -626,7 +641,65 @@ func _load_chunk(ch: Vector2i) -> void:
 	for k: Vector3i in map_walls_by_chunk.get(ch, []):
 		if not wall_nodes.has(k) and not bool(map_walls[k].get("broken", false)):
 			nodes.append(_make_wall(k, true))
+	var shore := _water_body(ch)
+	if shore != null:
+		nodes.append(shore)
 	loaded[ch] = {"nodes": nodes, "art": holder}
+
+
+## Colisão da água de um chunk: um losango por célula de água na margem (as de dentro não
+## precisam, ninguém chega lá). null = chunk sem margem.
+func _water_body(ch: Vector2i) -> StaticBody2D:
+	var body: StaticBody2D = null
+	var base := ch * CHUNK
+	for x in CHUNK:
+		for y in CHUNK:
+			var c := base + Vector2i(x, y)
+			if not water_cells.has(c):
+				continue
+			var edge := false
+			for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 1), Vector2i(-1, -1),
+					Vector2i(1, -1), Vector2i(-1, 1)]:
+				if not water_cells.has(c + d):
+					edge = true
+					break
+			if not edge:
+				continue
+			if body == null:
+				body = StaticBody2D.new()
+				body.collision_layer = 1
+				body.collision_mask = 0
+				entities.add_child(body)
+			var shape := CollisionShape2D.new()
+			var poly := ConvexPolygonShape2D.new()
+			poly.points = PackedVector2Array([Vector2(0, -HALF_H), Vector2(HALF_W, 0), Vector2(0, HALF_H), Vector2(-HALF_W, 0)])
+			shape.shape = poly
+			shape.position = ground.map_to_local(c)
+			body.add_child(shape)
+	return body
+
+
+## A posição está num vau (trecho raso do rio)?
+func is_ford(pos: Vector2) -> bool:
+	return ford_cells.has(cell_at(pos))
+
+
+## A posição cai na água?
+func is_water(pos: Vector2) -> bool:
+	return water_cells.has(cell_at(pos))
+
+
+## Posição seca mais perto (para nada nascer dentro da água).
+func dry_pos(pos: Vector2) -> Vector2:
+	var c := cell_at(pos)
+	if not water_cells.has(c):
+		return pos
+	for r in range(1, 12):
+		for dx in range(-r, r + 1):
+			for dy in range(-r, r + 1):
+				if maxi(absi(dx), absi(dy)) == r and not water_cells.has(c + Vector2i(dx, dy)) and not occupied.has(c + Vector2i(dx, dy)):
+					return ground.map_to_local(c + Vector2i(dx, dy))
+	return pos
 
 
 func _unload_chunk(ch: Vector2i) -> void:
@@ -947,6 +1020,7 @@ func _spawn_entity(d: Dictionary) -> Node:
 			c.nome = str(d["nome"])
 			c.items = Items.sanitize(d.get("items", []))
 			c.decomp = float(d.get("decomp", 0.0))
+			c.animal = str(d.get("animal", ""))
 			c.position = Game.v2(d["pos"])
 			c.setup_net()
 			node = c
@@ -967,6 +1041,14 @@ func _spawn_entity(d: Dictionary) -> Node:
 			npc.home = Game.v2(d.get("home", d["pos"]))
 			npc.setup_net()
 			node = npc
+		"animal":
+			var an := Animal.new()
+			an.world = self
+			an.kind = str(d.get("kind", "veado"))
+			an.hp = float(Animal.KINDS[an.kind]["vida"])
+			an.position = Game.v2(d["pos"])
+			an.setup_net()
+			node = an
 		"raider":
 			var rd := Raider.new()
 			rd.world = self
@@ -1746,7 +1828,7 @@ func _in_reach(p: Player, pos: Vector2) -> bool:
 
 ## Dá para construir? 'd' = borda (0/1) para paredes e portas; -1 para o resto.
 func can_place_at(kind: String, c: Vector2i, p: Player = null, d := -1) -> bool:
-	if Vector2(c).length() > RADIUS - 3.0 or not DB.BUILDS.has(kind):
+	if Vector2(c).length() > RADIUS - 3.0 or not DB.BUILDS.has(kind) or water_cells.has(c) or ford_cells.has(c):
 		return false
 	var t := build_type(kind)
 	if t == "barricada":
@@ -2072,6 +2154,11 @@ func make_noise(pos: Vector2, radius: float) -> void:
 		var off := e.position - pos
 		if Vector2(off.x, off.y * 2.0).length() <= radius:
 			e.hear(pos)
+	for n in get_tree().get_nodes_in_group("animals"):
+		var an := n as Animal
+		var off2 := an.position - pos
+		if Vector2(off2.x, off2.y * 2.0).length() <= radius * 0.8:
+			an.hear(pos)
 
 
 ## Efeito de tiro em todos os peers (rastros e clarão do cano).
@@ -2086,6 +2173,7 @@ func shot_fx(from: Vector2, tos: PackedVector2Array) -> void:
 # ======================================================================= inimigos / loot
 ## Servidor: cria um infectado replicado.
 func spawn_infected(pos: Vector2, elite: bool, extra := {}) -> Infected:
+	pos = dry_pos(pos)
 	var d := {"t": "inf", "pos": [pos.x, pos.y], "elite": elite}
 	d.merge(extra)
 	return spawn_net(d)
@@ -2108,8 +2196,8 @@ var _patrol_cd := 240.0
 
 
 func spawn_raider(pos: Vector2, extra := {}) -> Raider:
-	var weapons := ["pistola", "pistola", "espingarda", "faca", "taco"]
-	var d := {"t": "raider", "pos": [pos.x, pos.y], "arma": weapons[rng.randi() % weapons.size()]}
+	pos = dry_pos(pos)
+	var d := {"t": "raider", "pos": [pos.x, pos.y], "arma": Raider.roll_weapon(rng)}
 	d.merge(extra)
 	return spawn_net(d)
 
@@ -2232,9 +2320,58 @@ func _house_infected_step() -> void:
 			total += 1
 
 
+## Servidor: animais de caça no campo perto dos jogadores (longe de vilas e dos esporos).
+## Nascem fora da vista, em grupos pequenos, e somem quando todos ficam longe.
+const ANIMAL_CAP := 5
+
+func spawn_animal(pos: Vector2, kind: String) -> Animal:
+	pos = dry_pos(pos)
+	return spawn_net({"t": "animal", "pos": [pos.x, pos.y], "kind": kind})
+
+
+## Dá para um animal viver aqui? Campo aberto: fora de lugares, estradas, água e esporos.
+func animal_spot(pos: Vector2) -> bool:
+	var c := cell_at(pos)
+	if Vector2(c).length() > RADIUS * 0.9 or not _free_cell(c) or ground_cells.has(c) or in_safe_zone(pos):
+		return false
+	if spore_level_cell(c) > 0.3:
+		return false
+	for pl in places:
+		if Vector2(c - pl["cell"]).length() < float(pl["r"]) + 7.0:
+			return false
+	return true
+
+
+func _animal_step() -> void:
+	var alive := alive_players()
+	var animals := get_tree().get_nodes_in_group("animals")
+	for n in animals:
+		var a := n as Animal
+		if nearest_player(a.position, 1500.0) == null:
+			a.queue_free()
+	for p in alive:
+		var near := 0
+		for n in animals:
+			var a2 := n as Animal
+			if not a2.is_queued_for_deletion() and a2.position.distance_to(p.net_pos) < 1000.0:
+				near += 1
+		if near >= ANIMAL_CAP or rng.randf() > 0.3:
+			continue
+		var ang := rng.randf() * TAU
+		var pos := p.net_pos + Vector2(cos(ang) * rng.randf_range(620.0, 800.0), sin(ang) * rng.randf_range(360.0, 460.0))
+		if not animal_spot(pos) or nearest_player(pos, 560.0) != null:
+			continue
+		var pick := Animal.roll(rng)
+		for i in int(pick[1]):
+			var q := pos + Vector2(rng.randf_range(-50, 50), rng.randf_range(-25, 25))
+			if animal_spot(q):
+				spawn_animal(q, String(pick[0]))
+
+
 func _spawn_step() -> void:
 	_raider_step()
 	_house_infected_step()
+	_animal_step()
 	var alive := alive_players()
 	if alive.is_empty():
 		return
@@ -2751,7 +2888,8 @@ func body_env(pos: Vector2) -> Dictionary:
 		if Vector2(off.x, off.y * 2.0).length() < 130.0:
 			fire = true
 			break
-	return {"temp": air_temp(), "abrigo": house_cells.has(c) or terrain_deltas.has(c), "chuva": is_raining(), "fogo": fire}
+	return {"temp": air_temp(), "abrigo": house_cells.has(c) or terrain_deltas.has(c), "chuva": is_raining(), "fogo": fire,
+		"vau": ford_cells.has(c)}
 
 
 ## Servidor: perto de uma cama (prédio do mapa ou construída)?

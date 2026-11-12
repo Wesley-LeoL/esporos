@@ -21,7 +21,8 @@ VARIANTS = 3
 # A ordem é o enum T de scripts/world/world.gd (os índices vão para os saves).
 GROUND_TYPES = ["CONC_A", "CONC_B", "ESPOROS", "ESTRADA", "TERRA", "PISO", "MANCHA", "VILA",
                 "PISO_MADEIRA", "PISO_CONCRETO", "GRAMA", "GRAMA_SECA", "CALCADA", "FAIXA_X", "FAIXA_Y",
-                "TERRA_BATIDA", "ZEBRA_X", "ZEBRA_Y", "LAVOURA", "GRAMA_ESPOROS", "AZULEJO", "CARPETE"]
+                "TERRA_BATIDA", "ZEBRA_X", "ZEBRA_Y", "LAVOURA", "GRAMA_ESPOROS", "AZULEJO", "CARPETE",
+                "AGUA", "PONTE_X", "PONTE_Y", "VAU"]
 
 
 def C(h):
@@ -210,6 +211,27 @@ def tile(kind, var):
         base[alt] = C("#8b89a3")
         base[((U * 4) % 1 < 0.06) | ((V * 4) % 1 < 0.06)] = C("#68657c")
         chips(base, rng, 1 + var, [C("#747e91")], size=((0.05, 0.08), (0.04, 0.07)), ell=False)
+    elif kind == "AGUA":
+        # água de rio e lago: azul-esverdeado escuro com reflexos curtos alinhados à grade
+        base[:] = C("#1f4e5a")
+        chips(base, rng, 3, [C("#1a424d")], size=((0.14, 0.3), (0.08, 0.16)), ell=False)
+        chips(base, rng, 2 + var, [C("#2f6f78")], size=((0.1, 0.2), (0.03, 0.045)), ell=False)
+        chips(base, rng, 1, [C("#5aa5a8")], size=((0.05, 0.09), (0.025, 0.035)), ell=False)
+    elif kind == "VAU":
+        # trecho raso do rio: água clara com pedras do fundo aparecendo
+        base[:] = C("#3a7f86")
+        chips(base, rng, 3, [C("#2f6f78")], size=((0.12, 0.24), (0.07, 0.13)), ell=False)
+        chips(base, rng, 3 + var, [C("#747e91"), C("#5a5d7d")], size=((0.06, 0.11), (0.05, 0.08)))
+        chips(base, rng, 2, [C("#7fc4c0")], size=((0.06, 0.1), (0.025, 0.035)), ell=False)
+    elif kind in ("PONTE_X", "PONTE_Y"):
+        # ponte de madeira: tábuas atravessadas no sentido da passagem
+        a, b = (U, V) if kind == "PONTE_X" else (V, U)
+        base[:] = R("wood", 2)
+        plank = np.floor(a * 6)
+        base[(plank % 2) == 0] = R("wood", 3)
+        base[(a * 6) % 1 < 0.1] = R("wood", 1)
+        if var == 2:
+            base[(a > 0.35) & (a < 0.5) & (b > 0.3) & (b < 0.42)] = R("wood", 1)
     elif kind == "CARPETE":
         base[:] = R("red", 1)
         base[((U * 6) % 1 < 0.1) & ((V * 6) % 1 < 0.1)] = R("red", 2)

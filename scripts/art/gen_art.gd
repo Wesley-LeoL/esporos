@@ -38,7 +38,8 @@ static func frame_texture(sheet: String, row: int = 0, col: int = 0) -> Texture2
 
 ## Itens sem ícone próprio ainda (usam o de um parecido até a arte nova).
 const ICON_ALIAS := {"curativo_iodo": "bandagem", "curativo_campo": "gaze", "hemostatico": "analgesico",
-	"tonico_energetico": "agua_limpa", "adrenalina": "supressor"}
+	"tonico_energetico": "agua_limpa", "adrenalina": "supressor", "carne_crua": "carne_seca", "carne_assada": "carne_seca",
+	"couro": "jaqueta_couro", "luvas_couro": "luvas_mecanico"}
 
 
 static func icon(item: String) -> Texture2D:
