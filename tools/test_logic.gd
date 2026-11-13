@@ -414,6 +414,26 @@ func _initialize() -> void:
 	var first_tipo := String(Items.def(o.bags["mochila"][0]["id"])["tipo"])
 	check(first_tipo == "arma", "organizar põe as armas primeiro (%s)" % first_tipo)
 
+	# aparência (criação de personagem): vai na ficha, no save e na rede (inteiro)
+	var vr := RandomNumberGenerator.new()
+	vr.seed = 5
+	var all_ok := true
+	for i in 200:
+		var vv := CharArt.random_visual(vr)
+		if CharArt.decode(CharArt.encode(vv)) != CharArt.clean(vv):
+			all_ok = false
+	check(all_ok, "aparência sobrevive à ida e volta pela rede")
+	check(CharArt.clean({"sexo": 1, "barba": 3})["barba"] == 0 and CharArt.clean({"cabelo": 99})["cabelo"] < CharArt.CABELOS.size(),
+		"aparência inválida é corrigida (mulher sem barba, índices no limite)")
+	var vspec := SurvivorData.random_spec(vr)
+	vspec["visual"] = {"sexo": 0, "pele": 2, "cabelo": 4, "cor": 6, "barba": 3}
+	var vd := SurvivorData.from_spec(vspec, vr)
+	var vd2 := SurvivorData.from_dict(vd.to_dict())
+	check(vd2.visual == CharArt.clean(vspec["visual"]), "aparência escolhida vai para o sobrevivente e para o save")
+	var old_d := vd.to_dict()
+	old_d.erase("visual")
+	check(SurvivorData.from_dict(old_d).visual == SurvivorData.from_dict(old_d).visual, "save antigo ganha sempre a mesma aparência")
+
 	# caça: carne crua, couro e receitas
 	var hunter := SurvivorData.from_spec({"nome": "Caçador", "forca": 5, "resist": 5, "skills": {}, "traits": []}, r)
 	hunter.calories = 800.0

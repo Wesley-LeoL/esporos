@@ -1,8 +1,16 @@
 # Arte definitiva (PixelLab)
 
-Arte nova do jogo, feita no PixelLab (tema steampunk). Ainda **não está ligada ao jogo**: o
-jogo continua usando a arte provisória de `assets/art/generated/` até cada conjunto ficar
-completo.
+Arte nova do jogo, feita no PixelLab (tema steampunk). Os **personagens dos jogadores já
+usam esta arte** (criação de personagem e jogo); o resto continua com a arte provisória de
+`assets/art/generated/` até cada conjunto ficar completo.
+
+**No jogo:** `tools/bake_char_layers.py` grava as folhas prontas em `assets/art/characters/`
+(9 colunas: parado + 8 do andar; 8 linhas na ordem do enum Facing) e
+`scripts/art/char_art.gd` empilha as camadas. A aparência fica em `SurvivorData.visual`
+({sexo, pele, cabelo, cor, barba}), vai no save e na rede como um inteiro (`Player.vis`).
+A máscara de gás é uma camada desenhada por script (aparece com a máscara vestida).
+Enquanto não houver arte nova, o ataque usa a pose parada com um avanço e a mulher anda
+balançando a pose parada.
 
 ## Personagens (`personagens/`): sistema de camadas
 
@@ -27,7 +35,7 @@ Sprites de 64x64, 8 direções na ordem `s, se, e, ne, n, nw, w, sw`.
 
 - Andar da mulher; correr, parado respirando, agachado, atacar, levar golpe e morrer dos dois.
 - Roupas e equipamentos como camadas.
-- Ligar tudo na criação de personagem e no jogo.
+- Braço de pistão, monóculo e lanterna (a arte antiga mostrava; a nova ainda não).
 
 Ids no PixelLab: homem `1a3b3585-a35d-42b3-8d99-a2e044acef46`, mulher (v2)
 `ceb1c426-2c54-4f88-8186-6eaecb071ee5`.

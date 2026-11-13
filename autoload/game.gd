@@ -193,6 +193,12 @@ func debug_command(cmd: String) -> void:
 			# animal:tipo[,dx,dy] (testes)
 			var aoff := Vector2(90, 30) if a.size() < 3 else Vector2(float(a[1]), float(a[2]))
 			world.spawn_animal(p.position + aoff, a[0] if a[0] != "" else "veado")
+		"visstate":
+			# aparência de cada jogador visto aqui (testes)
+			var vs := "vis:"
+			for pl in get_tree().get_nodes_in_group("player"):
+				vs += " %s peer=%d vis=%d pend=%s" % [(pl as Player).nome, (pl as Player).peer, (pl as Player).vis, str((pl as Player).pending)]
+			say(vs)
 		"anstate":
 			# lista os animais: tipo, distância, estado e vida (testes)
 			var out := "animais:"

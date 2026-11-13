@@ -329,6 +329,19 @@ Antes de iniciarmos a lógica, preciso que você me oriente a:
   O clima muda a cada 3 a 7 minutos. O HUD mostra a hora e o clima.
 
 
+## Arte nova dos personagens e aparência na criação (fase 27)
+
+- **Arte do PixelLab** (steampunk) para os jogadores, por camadas: corpo (homem ou mulher) no
+  tom de pele, barba, máscara de gás e cabelo. Detalhes em `assets/art/pixellab/README.md`.
+- **Criação de personagem:** nova faixa "aparência" no topo, com prévia girando e andando:
+  corpo (homem/mulher), pele (4 tons), cabelo (6 penteados ou careca), cor do cabelo (12) e,
+  no homem, barba (por fazer, barbeado, cheia, bigode, cavanhaque). "Sortear aparência"
+  sorteia só a aparência. Os modelos (Equilibrado etc.) mantêm a aparência escolhida. A
+  parte de atributos, habilidades e traços agora rola, para caber tudo na tela.
+- A aparência vai no save; saves antigos ganham uma aparência sorteada a partir do nome.
+- Em co-op cada um vê a aparência dos outros.
+- NPCs, saqueadores e infectados continuam com a arte provisória.
+
 ## Campo, água e caça (fase 26)
 
 - **Menos lugares, mais campo.** O mapa (raio 150 tiles) tem 4 cidades pequenas (2 vivas, 1
@@ -481,4 +494,5 @@ ela será refeita no tema novo com o PixelLab.
 | 24 | Menu de pausa no ESC (pausa no solo; continuar, controles, salvar e voltar ao menu, salvar e sair) e troca de teclas salva em user://controles.cfg; avisos e teclas do HUD mostram a tecla atual | **feito** |
 | 25 | Saúde simples: vida única, sangramento que piora, perna torcida/quebrada com tala, curativos que curam na hora (e melhores fabricados), antibiótico que cura aos poucos, analgésico e hemostático, tônico e adrenalina para a estamina; aba Corpo removida | **feito** |
 | 26 | Menos vilas (7 vivas) e mais campo: florestas, rios com pontes e vaus, lagos; animais de caça (veado, javali, coelho) com carne e couro; saqueadores com mais armas brancas | **feito** |
+| 27 | Arte nova dos jogadores (PixelLab, por camadas) e aparência na criação de personagem (corpo, pele, cabelo, cor, barba) | **feito** |
 | 9 | Construção em bordas (estilo The Sims) com 3 abas, utilidades e decoração, rede de energia (eólico, combustão, baterias), mesa de reparos, dia/noite, clima e iluminação | **feito** |

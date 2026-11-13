@@ -146,6 +146,9 @@ static func creation_error(spec: Dictionary) -> String:
 			return "%s e %s não combinam." % [TRAITS[pair[0]]["nome"], TRAITS[pair[1]]["nome"]]
 	if creation_cost(spec) > CREATION_POINTS:
 		return "Pontos insuficientes."
+	var vis: Variant = spec.get("visual", {})
+	if not vis is Dictionary:
+		return "Ficha inválida."
 	return ""
 
 ## Itens. peso em kg, vol em litros. Campos de estado por unidade (ver Items):

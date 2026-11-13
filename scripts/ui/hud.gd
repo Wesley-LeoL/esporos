@@ -79,6 +79,7 @@ var creation_root: Control
 var creation_box: VBoxContainer
 var spec := {}
 var _creation_sent := false
+var _creation_scroll: ScrollContainer
 ## Medicina cooperativa: paciente escolhido na aba Corpo (0 = você) e dados recebidos.
 var patient_peer := 0
 var patient_info := {}
@@ -2527,11 +2528,23 @@ func _rebuild_creation() -> void:
 		var pn := pname
 		_btn(row, pn, _spec_change(func() -> void:
 			var keep := str(spec.get("nome", ""))
+			var keep_vis: Dictionary = spec.get("visual", CharArt.default_visual())
 			spec = DB.PRESETS[pn].duplicate(true)
-			spec["nome"] = keep))
+			spec["nome"] = keep
+			spec["visual"] = keep_vis))
+	_appearance(box)
+	# atributos, habilidades e traços rolam (a aparência ocupa o topo)
+	var cscroll := ScrollContainer.new()
+	cscroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	cscroll.custom_minimum_size = Vector2(1500, 500)
+	cscroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	box.add_child(cscroll)
+	var keep_y := _creation_scroll.scroll_vertical if is_instance_valid(_creation_scroll) else 0
+	_creation_scroll = cscroll
+	cscroll.set_deferred("scroll_vertical", keep_y)
 	var cols := _hbox(18)
-	cols.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	box.add_child(cols)
+	cols.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	cscroll.add_child(cols)
 	var c1 := _vbox(4)
 	c1.custom_minimum_size.x = 600
 	cols.add_child(c1)
@@ -2602,6 +2615,63 @@ func _rebuild_creation() -> void:
 		spec = SurvivorData.random_spec(r)), not _creation_sent)
 	var go := _btn(foot, "Começar", _submit_creation, err == "" and not _creation_sent)
 	go.add_theme_font_size_override("font_size", L)
+
+
+## Aparência: prévia girando e as escolhas (sexo, pele, cabelo, cor e barba).
+func _appearance(box: VBoxContainer) -> void:
+	if not spec.has("visual"):
+		spec["visual"] = CharArt.default_visual()
+	var vis: Dictionary = CharArt.clean(spec["visual"])
+	spec["visual"] = vis
+	var row := _hbox(18)
+	box.add_child(row)
+	var pv := CharArt.Preview.new()
+	pv.visual = vis
+	pv.zoom = 2.0
+	pv.custom_minimum_size = Vector2(110, 140)
+	row.add_child(pv)
+	var grid := GridContainer.new()
+	grid.columns = 3
+	grid.add_theme_constant_override("h_separation", 22)
+	grid.add_theme_constant_override("v_separation", 2)
+	row.add_child(grid)
+	var opts := [["sexo", "Corpo", CharArt.SEXO_NOMES], ["pele", "Pele", CharArt.PELE_NOMES],
+		["cabelo", "Cabelo", CharArt.CABELO_NOMES], ["cor", "Cor do cabelo", CharArt.COR_NOMES]]
+	if int(vis["sexo"]) == 0:
+		opts.append(["barba", "Barba", CharArt.BARBA_NOMES])
+	for o in opts:
+		var key: String = o[0]
+		var names: Array = o[2]
+		var line := _hbox(6)
+		grid.add_child(line)
+		var l := _label(String(o[1]).to_upper(), S, UITheme.MUTED)
+		l.custom_minimum_size.x = 150
+		l.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		line.add_child(l)
+		var cur := int(vis[key])
+		var b1 := _btn(line, "<", _spec_change(func() -> void:
+			spec["visual"][key] = posmod(int(spec["visual"][key]) - 1, names.size())), not _creation_sent)
+		b1.custom_minimum_size.x = 44
+		var v := _label(String(names[cur]), S, UITheme.ACCENT)
+		v.custom_minimum_size.x = 190
+		v.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		v.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		line.add_child(v)
+		if key == "cor":
+			var sw := ColorRect.new()
+			sw.color = CharArt.CORES[cur]
+			sw.custom_minimum_size = Vector2(26, 26)
+			sw.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			line.add_child(sw)
+		var b2 := _btn(line, ">", _spec_change(func() -> void:
+			spec["visual"][key] = posmod(int(spec["visual"][key]) + 1, names.size())), not _creation_sent)
+		b2.custom_minimum_size.x = 44
+	var rnd := _hbox(6)
+	grid.add_child(rnd)
+	_btn(rnd, "Sortear aparência", _spec_change(func() -> void:
+		var r := RandomNumberGenerator.new()
+		r.randomize()
+		spec["visual"] = CharArt.random_visual(r)), not _creation_sent)
 
 
 func _trait_rows(parent: VBoxContainer, positive: bool) -> void:

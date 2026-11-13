@@ -28,6 +28,8 @@ const CONT_NAMES := {"bolsos": "Bolsos", "mochila": "Mochila", "coldre": "Coldre
 const EQUIP_SLOTS := ["mascara", "mochila", "coldre"]
 
 var nome: String = "Sobrevivente"
+## Aparência (criação de personagem): {sexo, pele, cabelo, cor, barba}; ver CharArt.
+var visual: Dictionary = CharArt.default_visual()
 var pathogen: float = 10.0
 var calories: float = 1600.0
 var water: float = 80.0
@@ -107,6 +109,7 @@ static func random_spec(r: RandomNumberGenerator) -> Dictionary:
 	var keys: Array = DB.PRESETS.keys()
 	var spec: Dictionary = DB.PRESETS[keys[r.randi() % keys.size()]].duplicate(true)
 	spec["nome"] = NAMES[r.randi() % NAMES.size()]
+	spec["visual"] = CharArt.random_visual(r)
 	return spec
 
 
@@ -124,6 +127,7 @@ static func from_spec(spec: Dictionary, r: RandomNumberGenerator) -> SurvivorDat
 	for k in sk:
 		d.skills[str(k)]["lv"] = int(sk[k])
 	d.traits.assign(spec.get("traits", []))
+	d.visual = CharArt.clean(spec.get("visual", CharArt.random_visual(r)))
 	d.stamina = d.max_stamina()
 	return d
 
@@ -1612,7 +1616,7 @@ func craft(recipe: String, paid := false) -> bool:
 
 # ---------------------------------------------------------------- persistência
 func to_dict() -> Dictionary:
-	return {"nome": nome, "pathogen": pathogen, "calories": calories,
+	return {"nome": nome, "visual": visual.duplicate(), "pathogen": pathogen, "calories": calories,
 		"water": water, "hp": hp, "bleed": bleed, "perna": perna, "tala": tala, "osso_t": osso_t,
 		"regen_rate": regen_rate, "regen_t": regen_t, "stam_mult": stam_mult, "stam_t": stam_t, "skills": skills.duplicate(true),
 		"bags": bags.duplicate(true), "equip": equip.duplicate(true), "hand_u": hand_u, "next_u": _next_u,
@@ -1625,6 +1629,13 @@ func to_dict() -> Dictionary:
 static func from_dict(src: Dictionary) -> SurvivorData:
 	var d := SurvivorData.new()
 	d.nome = str(src.get("nome", "Sobrevivente"))
+	if src.has("visual"):
+		d.visual = CharArt.clean(src["visual"])
+	else:
+		# save antigo: aparência sorteada a partir do nome (sempre a mesma para o mesmo nome)
+		var vr := RandomNumberGenerator.new()
+		vr.seed = hash(d.nome)
+		d.visual = CharArt.random_visual(vr)
 	d.pathogen = float(src.get("pathogen", 10.0))
 	d.calories = float(src.get("calories", 1600.0))
 	d.water = float(src.get("water", 80.0))

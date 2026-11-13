@@ -49,6 +49,10 @@ var sneaking := false
 var attack_seq := 0
 # ---- replicado pelo servidor
 var look := 1  # bits: 1 máscara, 2 braço cibernético, 4 olho (HUD), 8 lanterna acesa
+## Aparência (CharArt.encode); 0 = ainda sem ficha.
+var vis := 0
+var _vis_code := -1
+var _vis := {}
 var alive := true
 var hurt_seq := 0
 ## Esperando o jogador criar um sobrevivente (entrada na sessão ou depois de morrer).
@@ -168,7 +172,7 @@ func setup_net(owner_peer: int) -> void:
 	peer = owner_peer
 	var own := Net.make_sync(self, [".:net_pos", ".:facing", ".:moving", ".:sprinting", ".:sneaking", ".:attack_seq"], 0.05)
 	own.name = "SyncDono"
-	var srv := Net.make_sync(self, [".:look", ".:alive", ".:hurt_seq", ".:nome", ".:pending",
+	var srv := Net.make_sync(self, [".:look", ".:vis", ".:alive", ".:hurt_seq", ".:nome", ".:pending",
 		".:busy_label", ".:busy_end", ".:busy_total"], 0.1)
 	srv.name = "SyncServidor"
 	# a autoridade é aplicada depois de criar os filhos (set_multiplayer_authority é recursivo)
@@ -332,6 +336,7 @@ func _server_tick(delta: float) -> void:
 		data.tick(delta, env)
 		look = int(data.has_mask()) | (2 if data.implant_active("braco_d") else 0) | (4 if data.implant_active("olho") else 0) \
 			| (8 if data.lantern_on() else 0)
+		vis = CharArt.encode(data.visual)
 		_fire_cd = maxf(0.0, _fire_cd - delta)
 		_tick_busy()
 		if moving:
@@ -409,8 +414,13 @@ func _animate(delta: float) -> void:
 		queue_redraw()
 
 
-## Coluna da folha do sobrevivente para o estado atual (ver GenCatalog.SURVIVOR_ANIMS).
+## Coluna da folha do sobrevivente para o estado atual. Arte nova (CharArt): 0 = parado,
+## 1-8 = andar; o ataque usa o parado com um avanço. Arte antiga: GenCatalog.SURVIVOR_ANIMS.
 func _anim_frame() -> int:
+	if vis > 0:
+		if _attack_anim > 0.0:
+			return 100 * facing + (2 if _attack_anim > 0.16 else 6)
+		return CharArt.frame_col(moving, _anim_t) + 100 * facing
 	var anims := GenCatalog.SURVIVOR_ANIMS
 	if _attack_anim > 0.0:
 		var a: Array = anims["attack"]
@@ -1230,14 +1240,25 @@ func _draw() -> void:
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	var in_vehicle := world != null and world.vehicle_of(peer) != null
 	if not in_vehicle:
-		GenArt.draw_frame(self, _sheet(), facing, _frame % 100 if _frame >= 0 else 0, Vector2.ZERO, tint)
+		if vis > 0:
+			if vis != _vis_code:
+				_vis_code = vis
+				_vis = CharArt.decode(vis)
+			var lunge := Vector2.ZERO
+			if _attack_anim > 0.0:
+				# avança um pouco na direção do golpe
+				lunge = Vector2.from_angle(facing * PI / 4.0) * Vector2(1.0, 0.5) * 3.0 * sin(_attack_anim / 0.33 * PI)
+			CharArt.draw(self, _vis, facing, _frame % 100 if _frame >= 0 else 0, lunge, tint, (look & 1) != 0)
+		else:
+			GenArt.draw_frame(self, _sheet(), facing, _frame % 100 if _frame >= 0 else 0, Vector2.ZERO, tint)
 	if busy_label != "" and busy_end > Game.play_time and busy_total > 0.0:
 		var k := clampf(1.0 - (busy_end - Game.play_time) / busy_total, 0.0, 1.0)
-		draw_rect(Rect2(-16, -58, 32, 4), Color(0, 0, 0, 0.7))
-		draw_rect(Rect2(-15, -57, 30.0 * k, 2), UITheme.ACCENT)
+		var by := -68.0 if vis > 0 else -58.0
+		draw_rect(Rect2(-16, by, 32, 4), Color(0, 0, 0, 0.7))
+		draw_rect(Rect2(-15, by + 1.0, 30.0 * k, 2), UITheme.ACCENT)
 	if not is_local() and nome != "":
 		# nome dos outros jogadores sobre a cabeça, na fonte pixelada em escala nativa
-		draw_set_transform(Vector2(0, -50), 0.0, Vector2(0.5, 0.5))
+		draw_set_transform(Vector2(0, -72 if vis > 0 else -50), 0.0, Vector2(0.5, 0.5))
 		var f := UITheme.font()
 		var w := f.get_string_size(nome, HORIZONTAL_ALIGNMENT_LEFT, -1, UITheme.FONT_S).x
 		draw_string(f, Vector2(-w / 2.0 + 2, 2), nome, HORIZONTAL_ALIGNMENT_LEFT, -1, UITheme.FONT_S, Color(0, 0, 0, 0.8))
