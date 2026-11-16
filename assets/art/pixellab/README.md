@@ -39,3 +39,31 @@ Sprites de 64x64, 8 direções na ordem `s, se, e, ne, n, nw, w, sw`.
 
 Ids no PixelLab: homem `1a3b3585-a35d-42b3-8d99-a2e044acef46`, mulher (v2)
 `ceb1c426-2c54-4f88-8186-6eaecb071ee5`.
+
+## Chão (`chao/`): texturas do mapa
+
+O plano sem assinatura não libera os tiles isométricos "pro". Por isso o chão vem de
+**tilesets top-down de 32 px** (`create_topdown_tileset`, modo padrão, 1 geração cada, dois
+terrenos por conjunto):
+
+1. `tools/pixellab_tiles.py <tileset_id> <TIPO_DE_BAIXO> <TIPO_DE_CIMA> [ajustes]` baixa o
+   conjunto, pega os ladrilhos "cheios" de cada terreno, ajusta as cores para a paleta
+   (menos saturação, mais escuro, um pouco de âmbar) e grava `chao/<TIPO>.png`. O conjunto
+   inteiro, com as transições, fica em `chao/sets/` (para as bordas entre terrenos depois).
+2. `python3 tools/gen_art.py --only ground` projeta as texturas no losango 80x40
+   (`gen_ground.texture_tile`: cada losango cobre 2x2 repetições, então não há emenda).
+   Faixas, faixa de pedestre e mancha de óleo usam a textura do asfalto com as marcas do
+   desenho antigo por cima. Tipo sem textura continua procedural (hoje: AZULEJO e as pontes).
+
+| Conjunto (id) | De baixo | De cima | Ajustes usados |
+|---|---|---|---|
+| 6e4b7ef7-787d-4061-bc5f-ff80dd7f2bd3 | TERRA | GRAMA | grama: `sat=0.5 val=0.8 quente=0.14` |
+| 9de167cd-2546-4df8-974d-f72cf1f83230 | TERRA_BATIDA | GRAMA_SECA | padrão |
+| 43989555-604b-4316-9993-267ba3c3317c | ESTRADA | CALCADA | padrão |
+| 47b1a10b-bf31-43cf-951d-5365a8b5c6c0 | AGUA | VAU | `hue:b=95 sat:b=0.95 val:b=0.85 quente:b=0 hue:c=90 sat:c=0.75 val:c=1.25 quente:c=0` |
+| 882f08be-e740-449b-871c-7b1c5e3a57df | CARPETE | PISO_MADEIRA | `sat=0.75` (o PixelLab trocou os dois) |
+| 37c2e32f-ea06-4be9-88ad-fd11c4912ed2 | PISO_CONCRETO | — | o azulejo saiu liso; ficou o procedural |
+| e73e0194-ff88-4a86-8e29-e4e680eaa69a | ESPOROS | (GRAMA_ESPOROS) | a grama com esporos é a GRAMA apagada + as manchas do ESPOROS (script no histórico do commit) |
+| fb432761-646c-4d42-8040-536777cfc8de | CONC_B | CONC_A | padrão (trocados) |
+| 768d2ca0-614f-4543-a102-654bb854ea5f | VILA | PISO | padrão |
+| cb8ca219-0fa3-43b4-b607-ca0737007948 | LAVOURA | — | padrão |

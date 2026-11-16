@@ -242,9 +242,72 @@ def tile(kind, var):
     return img
 
 
+# ------------------------------------------------------------------ texturas do PixelLab
+# Se existir assets/art/pixellab/chao/<TIPO>.png (textura top-down de 32 px que se repete,
+# importada por tools/pixellab_tiles.py), o ladrilho usa essa textura projetada no losango
+# em vez do desenho procedural. Cada losango cobre 2x2 repetições da textura, então os
+# vizinhos continuam a textura sem emenda. As variantes deslocam a textura.
+# Tipos derivados: as faixas e a mancha usam a textura do asfalto com as marcas do
+# desenho procedural por cima.
+import os as _os
+
+TEX_DIR = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "..", "assets", "art", "pixellab", "chao")
+DERIVED = {"FAIXA_X": "ESTRADA", "FAIXA_Y": "ESTRADA", "ZEBRA_X": "ESTRADA", "ZEBRA_Y": "ESTRADA", "MANCHA": "ESTRADA"}
+TEX_REPEAT = 2
+VAR_OFFSETS = [(0, 0), (13, 7), (21, 26)]
+_tex_cache = {}
+
+
+def _tex(kind):
+    if kind not in _tex_cache:
+        path = _os.path.join(TEX_DIR, kind + ".png")
+        if _os.path.exists(path):
+            from PIL import Image
+            _tex_cache[kind] = np.array(Image.open(path).convert("RGB"))
+        else:
+            _tex_cache[kind] = None
+    return _tex_cache[kind]
+
+
+def texture_tile(tex, var):
+    """Projeta a textura top-down no losango (u = eixo x do mapa, v = eixo y)."""
+    h, w = tex.shape[:2]
+    ox, oy = VAR_OFFSETS[var % len(VAR_OFFSETS)]
+    tx = (np.floor(U * w * TEX_REPEAT).astype(int) + ox) % w
+    ty = (np.floor(V * h * TEX_REPEAT).astype(int) + oy) % h
+    return tex[ty, tx]
+
+
+def tile_any(kind, var):
+    tex = _tex(kind)
+    if tex is not None:
+        img = tile(kind, var)
+        img[:, :, :3] = texture_tile(tex, var)
+        return img
+    src = DERIVED.get(kind)
+    if src is not None and _tex(src) is not None:
+        # marcas = pixels do desenho procedural com cores que o asfalto procedural não usa
+        # (tinta das faixas, mancha de óleo); as lascas do asfalto antigo ficam de fora
+        proc = tile(kind, var)
+        plain_cols = set()
+        for v2 in range(VARIANTS):
+            pl = tile(src, v2)
+            plain_cols |= {tuple(c) for c in pl[pl[:, :, 3] > 0][:, :3]}
+        marks = np.zeros(proc.shape[:2], dtype=bool)
+        for y in range(proc.shape[0]):
+            for x in range(proc.shape[1]):
+                if proc[y, x, 3] > 0 and tuple(proc[y, x, :3]) not in plain_cols:
+                    marks[y, x] = True
+        img = proc.copy()
+        img[:, :, :3] = texture_tile(_tex(src), var)
+        img[marks, :3] = proc[marks, :3]
+        return img
+    return tile(kind, var)
+
+
 def atlas():
     out = np.zeros((TH * VARIANTS, TW * len(GROUND_TYPES), 4), dtype=np.uint8)
     for ti, k in enumerate(GROUND_TYPES):
         for v in range(VARIANTS):
-            out[v * TH:(v + 1) * TH, ti * TW:(ti + 1) * TW] = tile(k, v)
+            out[v * TH:(v + 1) * TH, ti * TW:(ti + 1) * TW] = tile_any(k, v)
     return out
