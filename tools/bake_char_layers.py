@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
 """Prepara as camadas do personagem (arte do PixelLab) no formato que o jogo usa.
 
-Lê assets/art/pixellab/personagens/ e grava em assets/art/characters/ folhas de 64x64 com
-9 colunas (0 = parado, 1-8 = andar) e 8 linhas na ordem do enum Facing do jogo
-(E, SE, S, SW, W, NW, N, NE). O pé fica em (32, 62). As camadas de cabelo, barba e máscara
+Lê assets/art/pixellab/personagens/ (quadros de 64x64) e grava em assets/art/characters/
+folhas com 9 colunas (0 = parado, 1-8 = andar) e 8 linhas na ordem do enum Facing do jogo
+(E, SE, S, SW, W, NW, N, NE).
+
+ESCALA: o PixelLab desenha o personagem com ~62 px de altura, grande demais para o mundo
+(parede 59 px, porta ~50 px, árvore ~76 px; o personagem antigo tinha 46 px). Tudo é
+montado em 64 px e no fim cada quadro é reduzido para SCALE (75%: quadros de 48x48,
+personagem com ~46 px, pé em (24, 47)). Ver a régua em docs/ARTE_FILA.md. As camadas de cabelo, barba e máscara
 já vêm deslocadas para a cabeça de cada quadro, então o jogo só empilha:
 
   corpo_<sexo>_<tom>.png        corpo no tom de pele
@@ -24,6 +29,8 @@ import gen_face as gf
 import gen_hair as gh
 
 CELL = 64
+SCALE = 0.75
+OUT_CELL = round(CELL * SCALE)
 SRC = gh.DIR
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "assets", "art", "characters")
 # linha do jogo (Facing E, SE, S, SW, W, NW, N, NE) -> índice em gh.DIRS (s, se, e, ne, n, nw, w, sw)
@@ -112,11 +119,30 @@ def split_beard(layer):
     return skin, hair
 
 
+def shrink(cell):
+    """Reduz um quadro para OUT_CELL sem borrar: reamostra suave e volta para as cores do
+    próprio quadro (sem pontilhado), com a transparência cortada no meio."""
+    if cell.getbbox() is None:
+        return Image.new("RGBA", (OUT_CELL, OUT_CELL), (0, 0, 0, 0))
+    small = cell.resize((OUT_CELL, OUT_CELL), Image.LANCZOS)
+    opaque = Image.new("RGB", cell.size, (0, 0, 0))
+    opaque.paste(cell, mask=cell.split()[3])
+    pal = opaque.quantize(colors=48)
+    flat = small.convert("RGB").quantize(palette=pal, dither=Image.Dither.NONE).convert("RGB")
+    out = Image.new("RGBA", (OUT_CELL, OUT_CELL), (0, 0, 0, 0))
+    sp, fp, op = small.load(), flat.load(), out.load()
+    for y in range(OUT_CELL):
+        for x in range(OUT_CELL):
+            if sp[x, y][3] > 100:
+                op[x, y] = fp[x, y] + (255,)
+    return out
+
+
 def sheet(fn):
-    img = Image.new("RGBA", (CELL * (WALK + 1), CELL * 8), (0, 0, 0, 0))
+    img = Image.new("RGBA", (OUT_CELL * (WALK + 1), OUT_CELL * 8), (0, 0, 0, 0))
     for row, di in enumerate(GAME_ROWS):
         for col in range(WALK + 1):
-            img.paste(fn(di, col), (col * CELL, row * CELL))
+            img.paste(shrink(fn(di, col)), (col * OUT_CELL, row * OUT_CELL))
     return img
 
 

@@ -1253,12 +1253,12 @@ func _draw() -> void:
 			GenArt.draw_frame(self, _sheet(), facing, _frame % 100 if _frame >= 0 else 0, Vector2.ZERO, tint)
 	if busy_label != "" and busy_end > Game.play_time and busy_total > 0.0:
 		var k := clampf(1.0 - (busy_end - Game.play_time) / busy_total, 0.0, 1.0)
-		var by := -68.0 if vis > 0 else -58.0
+		var by := -58.0
 		draw_rect(Rect2(-16, by, 32, 4), Color(0, 0, 0, 0.7))
 		draw_rect(Rect2(-15, by + 1.0, 30.0 * k, 2), UITheme.ACCENT)
 	if not is_local() and nome != "":
 		# nome dos outros jogadores sobre a cabeça, na fonte pixelada em escala nativa
-		draw_set_transform(Vector2(0, -72 if vis > 0 else -50), 0.0, Vector2(0.5, 0.5))
+		draw_set_transform(Vector2(0, -50), 0.0, Vector2(0.5, 0.5))
 		var f := UITheme.font()
 		var w := f.get_string_size(nome, HORIZONTAL_ALIGNMENT_LEFT, -1, UITheme.FONT_S).x
 		draw_string(f, Vector2(-w / 2.0 + 2, 2), nome, HORIZONTAL_ALIGNMENT_LEFT, -1, UITheme.FONT_S, Color(0, 0, 0, 0.8))

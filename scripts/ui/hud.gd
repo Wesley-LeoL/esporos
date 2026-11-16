@@ -2627,7 +2627,7 @@ func _appearance(box: VBoxContainer) -> void:
 	box.add_child(row)
 	var pv := CharArt.Preview.new()
 	pv.visual = vis
-	pv.zoom = 2.0
+	pv.zoom = 2.5
 	pv.custom_minimum_size = Vector2(110, 140)
 	row.add_child(pv)
 	var grid := GridContainer.new()

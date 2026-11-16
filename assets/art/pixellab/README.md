@@ -4,8 +4,11 @@ Arte nova do jogo, feita no PixelLab (tema steampunk). Os **personagens dos joga
 usam esta arte** (criação de personagem e jogo); o resto continua com a arte provisória de
 `assets/art/generated/` até cada conjunto ficar completo.
 
+**Escala:** toda arte segue a régua de `docs/ARTE_FILA.md` (personagem ~46 px de altura).
+
 **No jogo:** `tools/bake_char_layers.py` grava as folhas prontas em `assets/art/characters/`
-(9 colunas: parado + 8 do andar; 8 linhas na ordem do enum Facing) e
+(9 colunas: parado + 8 do andar; 8 linhas na ordem do enum Facing), já reduzidas a 75%
+(quadros de 48x48; o PixelLab desenha o personagem com ~62 px, grande demais), e
 `scripts/art/char_art.gd` empilha as camadas. A aparência fica em `SurvivorData.visual`
 ({sexo, pele, cabelo, cor, barba}), vai no save e na rede como um inteiro (`Player.vis`).
 A máscara de gás é uma camada desenhada por script (aparece com a máscara vestida).

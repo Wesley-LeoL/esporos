@@ -12,6 +12,40 @@ exigem assinatura e não estão disponíveis.
 **Tema:** steampunk (vapor, latão, cobre, madeira escura, fuligem); eletricidade rudimentar.
 Cores sóbrias: ajustar saturação e brilho para a paleta do jogo (`scripts/ui/ui_theme.gd`).
 
+## Escala (régua do mundo) — obrigatório
+
+Tudo tem de ficar proporcional ao personagem; nada pode deixar o personagem parecendo
+grande ou pequeno. A régua é a arte que já está no jogo (em pixels do jogo, 1x):
+
+| Referência | Altura no jogo |
+|---|---|
+| Personagem adulto (jogador, NPC, saqueador, infectado) | **~46 px** (quadro de 48x48, pé em (24, 47)) |
+| Parede de casa | 59 px (ladrilho 80x40; quadro da parede 76x71) |
+| Porta | ~50 px de vão (um pouco mais alta que o personagem) |
+| Árvore / pinheiro | 76 px (árvore grande até ~90) |
+| Poste de rua | ~90 px |
+| Armário, estante | ~66–71 px · geladeira ~58 · mesa ~42 · cadeira ~40 |
+| Barril / tambor | ~36 px · caixote ~30 · banco de praça ~40 · arbusto ~22 · pedra ~22 |
+| Carro / locomóvel | ~150 x 57 px |
+| Animais | coelho ~10 px de altura, javali ~22, veado ~36 (na cernelha ~26) |
+
+Conta rápida: **1 metro ≈ 26 px** de altura (personagem de 1,75 m = 46 px).
+
+Como cumprir:
+- **Objetos do mapa** (`create_map_object`): gere num quadro um pouco maior que a altura
+  da tabela e depois corte o fundo vazio; se o objeto sair maior ou menor que a régua,
+  reduza (ou amplie) para a altura da tabela antes de integrar. Reduza com reamostragem suave e
+  volte às cores do próprio objeto sem pontilhado (como `shrink()` em
+  `tools/bake_char_layers.py`). Nunca deixe o objeto num tamanho "qualquer" só porque foi o
+  que o PixelLab devolveu.
+- **Personagens e criaturas:** o PixelLab desenha personagem de 64 px com ~62 px de altura.
+  Tudo que for personagem passa pelo mesmo `shrink()` para 75% (48x48, ~46 px). Animais e
+  inimigos seguem a tabela.
+- **Chão:** o ladrilho é 80x40; as texturas cobrem 2x2 repetições por ladrilho (detalhes de
+  ~1/4 de metro). Pedras do calçamento, tábuas etc. devem ter tamanho coerente com isso.
+- **Conferência:** toda arte nova é conferida numa captura do jogo ao lado do personagem e
+  de uma casa antes de ir para o main.
+
 Legenda: `[x]` feito · `[ ]` falta · custo em gerações entre parênteses.
 
 ## 1. Mapa (prioridade)
@@ -23,7 +57,7 @@ Legenda: `[x]` feito · `[ ]` falta · custo em gerações entre parênteses.
 
 ### Objetos do mapa (`create_map_object`, 1 cada, vista "high top-down", fundo transparente)
 Substituem os props da arte provisória (`assets/art/generated/`), mesmo nome de arte.
-Tamanho próximo do sprite atual do prop; pé (base) embaixo, no centro.
+Altura pela régua de escala acima; pé (base) embaixo, no centro.
 - [ ] arvore (2 variações): árvore de copa redonda
 - [ ] pinheiro
 - [ ] arvore_morta: árvore seca, galhos retorcidos, cinza
@@ -62,4 +96,5 @@ Tamanho próximo do sprite atual do prop; pé (base) embaixo, no centro.
 
 ## Registro
 - 2026-11-12: corpos base, cabelos, barbas, andar do homem.
+- 2026-11-16: personagens reduzidos para 75% (48x48, ~46 px), que estavam grandes demais para o mundo; régua de escala registrada.
 - 2026-11-16: 10 tilesets de chão (TERRA, GRAMA, TERRA_BATIDA, GRAMA_SECA, ESTRADA, CALCADA, AGUA, VAU, PISO_MADEIRA, CARPETE, PISO_CONCRETO, ESPOROS, GRAMA_ESPOROS, CONC_A, CONC_B, VILA, PISO, LAVOURA).

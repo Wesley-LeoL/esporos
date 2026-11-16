@@ -33,8 +33,8 @@ CELL = gh.CELL
 TONS = {
     "clara": None,
     "media": (-2.0, 1.08, 0.86),
-    "morena": (-4.0, 1.12, 0.68),
-    "escura": (-6.0, 1.05, 0.5),
+    "morena": (-4.0, 1.12, 0.62),
+    "escura": (-6.0, 1.0, 0.4),
 }
 BARBAS = ["sem", "cheia", "bigode", "cavanhaque"]
 

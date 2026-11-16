@@ -2,7 +2,7 @@ class_name CharArt
 extends RefCounted
 ## Personagem do jogador montado por camadas (arte do PixelLab): corpo no tom de pele,
 ## barba, cabelo e máscara. As folhas ficam em assets/art/characters/ (geradas por
-## tools/bake_char_layers.py): 64x64, coluna 0 = parado, 1-8 = andar, linhas na ordem do
+## tools/bake_char_layers.py): 48x48, coluna 0 = parado, 1-8 = andar, linhas na ordem do
 ## enum Facing do jogador (E, SE, S, SW, W, NW, N, NE). Cabelo e pelos da barba são cinza e
 ## são tingidos com a cor do cabelo (modulate).
 ##
@@ -10,8 +10,10 @@ extends RefCounted
 ## e viaja na rede como um inteiro (encode/decode).
 
 const DIR := "res://assets/art/characters/"
-const CELL := 64
-const FOOT := Vector2(32, 62)
+## Quadros de 48x48 (a arte de 64 px reduzida a 75% para a escala do mundo; ver
+## tools/bake_char_layers.py). Personagem com ~46 px de altura.
+const CELL := 48
+const FOOT := Vector2(24, 47)
 const WALK_FRAMES := 8
 
 const SEXOS := ["homem", "mulher"]
